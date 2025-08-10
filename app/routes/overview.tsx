@@ -82,7 +82,15 @@ export default function OverviewPage() {
     const prev3Avg = prev3.length ? prev3.reduce((s, r) => s + r.rating, 0) / prev3.length : 0
     const delta = last3Avg - prev3Avg
 
-    return { count, avgRating, avgSent, delta }
+    const last3Sent = last3.length ? last3.reduce((s,r)=>s+r.sentimentScore,0)/last3.length : 0
+    const prev3Sent = prev3.length ? prev3.reduce((s,r)=>s+r.sentimentScore,0)/prev3.length : 0
+    const deltaSent = last3Sent - prev3Sent
+
+    const last3Count = last3.length
+    const prev3Count = prev3.length || 1
+    const deltaVol = (last3Count - prev3Count) / prev3Count
+
+    return { count, avgRating, avgSent, delta, deltaSent, deltaVol }
   }, [filtered])
 
   const trendData = useMemo(() => {
@@ -213,12 +221,15 @@ export default function OverviewPage() {
               icon={<MessageSquare className="h-5 w-5 text-brand-600" />}
               label="Reviews"
               value={kpis.count}
+              delta={Number((kpis.deltaVol*100).toFixed(1))}
+              suffix="%"
             />
             <KPIStat
               icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
               label="Sentiment"
               value={Number((kpis.avgSent * 100).toFixed(0))}
               suffix="%"
+              delta={Number((kpis.deltaSent*100).toFixed(1))}
             />
             <KPIStat
               icon={<ArrowUpRight className="h-5 w-5 text-accentPurple" />}
