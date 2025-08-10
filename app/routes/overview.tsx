@@ -272,7 +272,10 @@ export default function OverviewPage() {
               <ExportButton targetId={trendCardId} filename="monthly-trend.png" />
             </div>
           </div>
-          {isPending ? <Skeleton className="h-72" /> : <LineChartViz data={trendData} yLeftKey="reviews" yRightKey="rating" showBrush />}
+          {isPending ? <Skeleton className="h-72" /> : <LineChartViz data={slicedTrend} yLeftKey="reviews" yRightKey="rating" showBrush={false} />}
+          <div className="mt-2">
+            <RangeSlider min={0} max={100} value={range} onChange={setRange} />
+          </div>
         </AnimateCard>
         <AnimateCard className="p-4">
           <div id={ratingCardId} className="flex items-center justify-between mb-2">
@@ -297,10 +300,10 @@ export default function OverviewPage() {
         <div className="flex items-center justify-between">
           <h3 className="font-semibold mb-2">Rating Mix Shift</h3>
         </div>
-        <div className="mb-2">
-          <RangeSlider min={0} max={100} value={range} onChange={setRange} labels={slicedTrend.map(d=>d.name)} />
-        </div>
         {isPending ? <Skeleton className="h-72" /> : <StackedRatingArea data={slicedTrend} showBrush={false} />}
+        <div className="mt-2">
+          <RangeSlider min={0} max={100} value={range} onChange={setRange} />
+        </div>
       </AnimateCard>
 
       <AnimateCard className="p-4">
