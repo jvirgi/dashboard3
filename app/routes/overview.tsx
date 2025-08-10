@@ -14,13 +14,35 @@ import { Sparkline } from '@/components/Sparkline'
 import { ExportButton } from '@/components/ExportButton'
 import { Skeleton } from '@/components/Skeleton'
 import { useTransition } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 export default function OverviewPage() {
   const data = sampleData
-
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'all'>('all')
-  const [selectedBrandId, setSelectedBrandId] = useState<string | 'all'>('all')
-  const [selectedRetailerId, setSelectedRetailerId] = useState<string | 'all'>('all')
+  const search = useSearchParams()
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'all'>(
+    (()=>{
+      const catName = search.get('category')
+      if (!catName) return 'all'
+      const c = data.categories.find(c=>c.name.toLowerCase()===catName.toLowerCase())
+      return c?.categoryId || 'all'
+    })()
+  )
+  const [selectedBrandId, setSelectedBrandId] = useState<string | 'all'>(
+    (()=>{
+      const brandName = search.get('brand')
+      if (!brandName) return 'all'
+      const b = data.brands.find(b=>b.name.toLowerCase()===brandName.toLowerCase())
+      return b?.brandId || 'all'
+    })()
+  )
+  const [selectedRetailerId, setSelectedRetailerId] = useState<string | 'all'>(
+    (()=>{
+      const retName = search.get('retailer')
+      if (!retName) return 'all'
+      const r = data.retailers.find(r=>r.name.toLowerCase()===retName.toLowerCase())
+      return r?.retailerId || 'all'
+    })()
+  )
   const [months, setMonths] = useState<number>(12)
   const [isPending, startTransition] = useTransition()
 

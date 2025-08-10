@@ -9,9 +9,11 @@ import { RadarChartViz } from '@/components/charts/RadarChartViz'
 import { TreemapViz } from '@/components/charts/TreemapViz'
 import { ExportButton } from '@/components/ExportButton'
 import { Skeleton } from '@/components/Skeleton'
+import { useRouter } from 'next/navigation'
 
 export default function CategoryBrandPage() {
   const data = sampleData
+  const router = useRouter()
   const { categories, brands, products, dates, reviews, retailers, themes } = data
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'all'>('all')
@@ -98,7 +100,7 @@ export default function CategoryBrandPage() {
           <h3 className="font-semibold mb-2">Avg Rating by Category</h3>
           {isPending ? <Skeleton className="h-72" /> : (
             <BarChartViz data={byCategory} xKey="name" barKey="value" color="#14b8a6" onBarClick={(name)=>{
-              const c = categories.find(cat=>cat.name===name); if (c) onSelectCategory(c.categoryId)
+              const c = categories.find(cat=>cat.name===name); if (c) router.push(`/?category=${encodeURIComponent(c.name)}`)
             }} />
           )}
         </AnimateCard>
@@ -106,7 +108,7 @@ export default function CategoryBrandPage() {
           <h3 className="font-semibold mb-2">Top Brands</h3>
           {isPending ? <Skeleton className="h-72" /> : (
             <BarChartViz data={topBrands.map(b=>({name:b.name, value:b.avg}))} xKey="name" barKey="value" color="#3b82f6" onBarClick={(name)=>{
-              const b = topBrands.find(tb=>tb.name===name); if (b) onSelectBrand(b.id)
+              const b = topBrands.find(tb=>tb.name===name); if (b) router.push(`/?brand=${encodeURIComponent(b.name)}`)
             }} />
           )}
         </AnimateCard>

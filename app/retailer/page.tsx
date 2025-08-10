@@ -7,10 +7,12 @@ import { AnimateCard } from '@/components/AnimateCard'
 import { HeatmapGrid } from '@/components/HeatmapGrid'
 import { MonthSegment } from '@/components/MonthSegment'
 import { Skeleton } from '@/components/Skeleton'
+import { useRouter } from 'next/navigation'
 
 export default function RetailerPage(){
   const data = sampleData
   const { retailers, dates, reviews } = data
+  const router = useRouter()
 
   const [months, setMonths] = useState<number>(12)
   const [isPending, startTransition] = useTransition()
@@ -75,13 +77,13 @@ export default function RetailerPage(){
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Avg Rating by Retailer</h3>
           {isPending ? <Skeleton className="h-80" /> : (
-            <BarChartViz data={byRetailer} xKey="name" barKey="value" color="#ef4444" onBarClick={(name)=>{ /* could route to overview with retailer preselected */ }} />
+            <BarChartViz data={byRetailer} xKey="name" barKey="value" color="#ef4444" onBarClick={(name)=>{ router.push(`/?retailer=${encodeURIComponent(name)}`) }} />
           )}
         </AnimateCard>
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Review Volume by Retailer</h3>
           {isPending ? <Skeleton className="h-80" /> : (
-            <BarChartViz data={volumeByRetailer} xKey="name" barKey="value" color="#f59e0b" onBarClick={(name)=>{ /* same here */ }} />
+            <BarChartViz data={volumeByRetailer} xKey="name" barKey="value" color="#f59e0b" onBarClick={(name)=>{ router.push(`/?retailer=${encodeURIComponent(name)}`) }} />
           )}
         </AnimateCard>
       </div>
