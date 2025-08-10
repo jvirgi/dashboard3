@@ -4,10 +4,13 @@ import { useMemo, useState } from 'react'
 import { sampleData } from '@/lib/sampleData'
 import { FilterBar } from '@/components/FilterBar'
 import { BarChartViz } from '@/components/charts/BarChartViz'
+import { AnimateCard } from '@/components/AnimateCard'
+import { RadarChartViz } from '@/components/charts/RadarChartViz'
+import { TreemapViz } from '@/components/charts/TreemapViz'
 
 export default function CategoryBrandPage() {
   const data = sampleData
-  const { categories, brands, products, dates, reviews, retailers } = data
+  const { categories, brands, products, dates, reviews, retailers, themes } = data
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'all'>('all')
   const [selectedBrandId, setSelectedBrandId] = useState<string | 'all'>('all')
@@ -53,6 +56,21 @@ export default function CategoryBrandPage() {
       .slice(0,10)
   }, [filteredReviews, brands, products])
 
+  const themeProfile = useMemo(()=>{
+    const counts = new Map<string, number>()
+    for (const r of filteredReviews){
+      for (const t of r.themeIds){
+        counts.set(t, (counts.get(t)||0) + 1)
+      }
+    }
+    return themes.map(t=>({ name: t.name, value: counts.get(t.themeId) || 0 }))
+  }, [filteredReviews, themes])
+
+  const composition = useMemo(()=>{
+    // brand composition by review counts
+    return topBrands.map(b=>({ name: b.name, value: b.count }))
+  }, [topBrands])
+
   const resetBrandOnCategoryChange = (categoryId: string | 'all') => {
     setSelectedCategoryId(categoryId)
     setSelectedBrandId('all')
@@ -77,17 +95,28 @@ export default function CategoryBrandPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="card p-4">
+        <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Avg Rating by Category</h3>
           <BarChartViz data={byCategory} xKey="name" barKey="value" color="#14b8a6" />
-        </div>
-        <div className="card p-4">
+        </AnimateCard>
+        <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Top Brands</h3>
           <BarChartViz data={topBrands.map(b=>({name:b.name, value:b.avg}))} xKey="name" barKey="value" color="#3b82f6" />
-        </div>
+        </AnimateCard>
       </div>
 
-      <div className="card p-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <AnimateCard className="p-4">
+          <h3 className="font-semibold mb-2">Theme Profile (Radar)</h3>
+          <RadarChartViz data={themeProfile} />
+        </AnimateCard>
+        <AnimateCard className="p-4">
+          <h3 className="font-semibold mb-2">Brand Mix (Treemap)</h3>
+          <TreemapViz data={composition} />
+        </AnimateCard>
+      </div>
+
+      <AnimateCard className="p-4">
         <h3 className="font-semibold mb-2">Top Products</h3>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -120,7 +149,7 @@ export default function CategoryBrandPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </AnimateCard>
     </div>
   )
 }

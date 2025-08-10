@@ -3,11 +3,12 @@
 import { useMemo, useState } from 'react'
 import { sampleData } from '@/lib/sampleData'
 import { BarChartViz } from '@/components/charts/BarChartViz'
-import { FilterBar } from '@/components/FilterBar'
+import { AnimateCard } from '@/components/AnimateCard'
+import { HeatmapGrid } from '@/components/HeatmapGrid'
 
 export default function RetailerPage(){
   const data = sampleData
-  const { retailers, dates, reviews, brands, products, categories } = data
+  const { retailers, dates, reviews } = data
 
   const [months, setMonths] = useState<number>(12)
 
@@ -38,6 +39,23 @@ export default function RetailerPage(){
     return Array.from(map.values()).map(v=>({name:v.name, value:v.count}))
   }, [filteredReviews, retailers])
 
+  const heatmap = useMemo(()=>{
+    const cols = cutoff.map(k=>k)
+    const rows = retailers.map(r=>r.name)
+    const idxRetailer = new Map(retailers.map((r,i)=>[r.retailerId, i]))
+    const idxCol = new Map(cols.map((c,i)=>[c,i]))
+    const mat = Array.from({length: rows.length}, ()=> Array(cols.length).fill(NaN))
+    for (const rev of filteredReviews){
+      const ri = idxRetailer.get(rev.retailerId)
+      const ci = idxCol.get(rev.dateKey)
+      if (ri===undefined || ci===undefined) continue
+      if (Number.isNaN(mat[ri][ci])) mat[ri][ci] = 0
+      // accumulate average via simple mean (could store count separately for precision)
+      mat[ri][ci] = Number.isNaN(mat[ri][ci]) ? rev.rating : (mat[ri][ci] + rev.rating) / 2
+    }
+    return { rows, cols: cols.map(c=>new Date(c+'-01').toLocaleDateString(undefined,{month:'short'})), values: mat }
+  }, [filteredReviews, cutoff, retailers])
+
   return (
     <div className="space-y-6">
       <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
@@ -55,15 +73,20 @@ export default function RetailerPage(){
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="card p-4">
+        <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Avg Rating by Retailer</h3>
           <BarChartViz data={byRetailer} xKey="name" barKey="value" color="#ef4444" />
-        </div>
-        <div className="card p-4">
+        </AnimateCard>
+        <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Review Volume by Retailer</h3>
           <BarChartViz data={volumeByRetailer} xKey="name" barKey="value" color="#f59e0b" />
-        </div>
+        </AnimateCard>
       </div>
+
+      <AnimateCard className="p-4">
+        <h3 className="font-semibold mb-2">Monthly Avg Rating Heatmap</h3>
+        <HeatmapGrid rows={heatmap.rows} cols={heatmap.cols} values={heatmap.values} />
+      </AnimateCard>
     </div>
   )
 }

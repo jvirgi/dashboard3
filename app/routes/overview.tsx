@@ -1,22 +1,17 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useId } from 'react'
 import { format } from 'date-fns'
-import {
-  CategoryDim,
-  BrandDim,
-  ProductDim,
-  RetailerDim,
-  DateDim,
-  ReviewFact,
-  ThemeDim
-} from '@/lib/types'
 import { sampleData } from '@/lib/sampleData'
 import { ArrowUpRight, Star, MessageSquare, TrendingUp } from 'lucide-react'
 import { LineChartViz } from '@/components/charts/LineChartViz'
 import { BarChartViz } from '@/components/charts/BarChartViz'
 import { KPIStat } from '@/components/KPIStat'
 import { FilterBar } from '@/components/FilterBar'
+import { StackedRatingArea } from '@/components/charts/StackedRatingArea'
+import { AnimateCard } from '@/components/AnimateCard'
+import { Sparkline } from '@/components/Sparkline'
+import { ExportButton } from '@/components/ExportButton'
 
 export default function OverviewPage() {
   const data = sampleData
@@ -66,21 +61,27 @@ export default function OverviewPage() {
   }, [filtered])
 
   const trendData = useMemo(() => {
-    const byMonth = new Map<string, { date: Date; count: number; avgRating: number }>()
+    const byMonth = new Map<string, { date: Date; count: number; avgRating: number; r1: number; r2: number; r3: number; r4: number; r5: number }>()
     for (const d of dates) {
       if (!filtered.cutoff.includes(d.dateKey)) continue
-      byMonth.set(d.dateKey, { date: d.date, count: 0, avgRating: 0 })
+      byMonth.set(d.dateKey, { date: d.date, count: 0, avgRating: 0, r1: 0, r2: 0, r3: 0, r4: 0, r5: 0 })
     }
     for (const r of filtered.filteredReviews) {
       const slot = byMonth.get(r.dateKey)
       if (!slot) continue
       slot.count += 1
       slot.avgRating += r.rating
+      if (r.rating === 1) slot.r1++
+      if (r.rating === 2) slot.r2++
+      if (r.rating === 3) slot.r3++
+      if (r.rating === 4) slot.r4++
+      if (r.rating === 5) slot.r5++
     }
     const rows = Array.from(byMonth.values()).map((v) => ({
       name: format(v.date, 'MMM yy'),
       reviews: v.count,
-      rating: v.count ? Number((v.avgRating / v.count).toFixed(2)) : 0
+      rating: v.count ? Number((v.avgRating / v.count).toFixed(2)) : 0,
+      r1: v.r1, r2: v.r2, r3: v.r3, r4: v.r4, r5: v.r5,
     }))
     return rows
   }, [filtered, dates])
@@ -112,6 +113,12 @@ export default function OverviewPage() {
     setSelectedBrandId('all')
   }
 
+  const kpiSparkline = useMemo(()=> trendData.map(d=>({ name: d.name, value: d.rating })), [trendData])
+
+  const trendCardId = useId().toString()
+  const ratingCardId = useId().toString()
+  const themeCardId = useId().toString()
+
   return (
     <div className="space-y-6">
       <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
@@ -134,7 +141,7 @@ export default function OverviewPage() {
         <KPIStat
           icon={<Star className="h-5 w-5 text-amber-500" />}
           label="Avg Rating"
-          value={kpis.avgRating.toFixed(2)}
+          value={<div className="flex items-center gap-3"><span>{kpis.avgRating.toFixed(2)}</span><Sparkline data={kpiSparkline} color="#f59e0b"/></div> as any}
           delta={kpis.delta}
         />
         <KPIStat
@@ -155,23 +162,34 @@ export default function OverviewPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="card p-4 xl:col-span-2">
-          <div className="flex items-center justify-between mb-2">
+        <AnimateCard className="p-4 xl:col-span-2" >
+          <div id={trendCardId} className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Monthly Trend</h3>
-            <div className="badge border-brand-200 text-brand-800 bg-brand-50">Avg Rating & Volume</div>
+            <ExportButton targetId={trendCardId} filename="monthly-trend.png" />
           </div>
           <LineChartViz data={trendData} yLeftKey="reviews" yRightKey="rating" />
-        </div>
-        <div className="card p-4">
-          <h3 className="font-semibold mb-2">Rating Distribution</h3>
+        </AnimateCard>
+        <AnimateCard className="p-4">
+          <div id={ratingCardId} className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold">Rating Distribution</h3>
+            <ExportButton targetId={ratingCardId} filename="rating-distribution.png" />
+          </div>
           <BarChartViz data={ratingDist} xKey="name" barKey="value" color="#f59e0b" />
-        </div>
+        </AnimateCard>
       </div>
 
-      <div className="card p-4">
-        <h3 className="font-semibold mb-2">Top Themes</h3>
+      <AnimateCard className="p-4">
+        <div id={themeCardId} className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold">Top Themes</h3>
+          <ExportButton targetId={themeCardId} filename="top-themes.png" />
+        </div>
         <BarChartViz data={themeTop} xKey="name" barKey="count" color="#7c3aed" />
-      </div>
+      </AnimateCard>
+
+      <AnimateCard className="p-4">
+        <h3 className="font-semibold mb-2">Rating Mix Shift</h3>
+        <StackedRatingArea data={trendData} />
+      </AnimateCard>
     </div>
   )
 }

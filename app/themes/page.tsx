@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react'
 import { sampleData } from '@/lib/sampleData'
 import { BarChartViz } from '@/components/charts/BarChartViz'
+import { AnimateCard } from '@/components/AnimateCard'
+import { TreemapViz } from '@/components/charts/TreemapViz'
 
 export default function ThemesPage(){
   const data = sampleData
@@ -45,17 +47,22 @@ export default function ThemesPage(){
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="card p-4">
+        <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Theme Volume</h3>
           <BarChartViz data={themeStats.map(t=>({name:t.name, value:t.volume}))} xKey="name" barKey="value" color="#8b5cf6" />
-        </div>
-        <div className="card p-4">
+        </AnimateCard>
+        <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Theme Sentiment</h3>
           <BarChartViz data={themeStats.map(t=>({name:t.name, value:t.sentiment}))} xKey="name" barKey="value" color="#10b981" />
-        </div>
+        </AnimateCard>
       </div>
 
-      <div className="card p-4">
+      <AnimateCard className="p-4">
+        <h3 className="font-semibold mb-2">Theme Composition (Treemap)</h3>
+        <TreemapViz data={themeStats.map(t=>({ name: t.name, value: t.volume }))} />
+      </AnimateCard>
+
+      <AnimateCard className="p-4">
         <h3 className="font-semibold mb-3">Recent Quotes</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {recentQuotes.map((q)=> (
@@ -66,7 +73,7 @@ export default function ThemesPage(){
             </div>
           ))}
         </div>
-      </div>
+      </AnimateCard>
     </div>
   )
 }
