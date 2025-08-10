@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { sampleData } from '@/lib/sampleData'
 import { FilterBar } from '@/components/FilterBar'
 import { BarChartViz } from '@/components/charts/BarChartViz'
@@ -8,6 +8,7 @@ import { AnimateCard } from '@/components/AnimateCard'
 import { RadarChartViz } from '@/components/charts/RadarChartViz'
 import { TreemapViz } from '@/components/charts/TreemapViz'
 import { ExportButton } from '@/components/ExportButton'
+import { Skeleton } from '@/components/Skeleton'
 
 export default function CategoryBrandPage() {
   const data = sampleData
@@ -16,6 +17,7 @@ export default function CategoryBrandPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'all'>('all')
   const [selectedBrandId, setSelectedBrandId] = useState<string | 'all'>('all')
   const [months, setMonths] = useState<number>(12)
+  const [isPending, startTransition] = useTransition()
 
   const cutoff = useMemo(() => dates.sort((a,b)=>a.date.getTime()-b.date.getTime()).slice(-months).map(d=>d.dateKey), [dates, months])
 
@@ -36,7 +38,7 @@ export default function CategoryBrandPage() {
       slot.avg += r.rating
       slot.count += 1
     }
-    return Array.from(map.values()).map(v=>({name:v.name, value: v.count? Number((v.avg/v.count).toFixed(2)) : 0}))
+    return Array.from(map.entries()).map(([id,v])=>({id, name:v.name, value: v.count? Number((v.avg/v.count).toFixed(2)) : 0}))
   }, [filteredReviews, categories, brands, products])
 
   const topBrands = useMemo(()=>{
@@ -67,15 +69,11 @@ export default function CategoryBrandPage() {
     return themes.map(t=>({ name: t.name, value: counts.get(t.themeId) || 0 }))
   }, [filteredReviews, themes])
 
-  const composition = useMemo(()=>{
-    // brand composition by review counts
-    return topBrands.map(b=>({ name: b.name, value: b.count }))
-  }, [topBrands])
+  const composition = useMemo(()=> topBrands.map(b=>({ name: b.name, value: b.count })), [topBrands])
 
-  const resetBrandOnCategoryChange = (categoryId: string | 'all') => {
-    setSelectedCategoryId(categoryId)
-    setSelectedBrandId('all')
-  }
+  const onSelectCategory = (id: string | 'all') => startTransition(()=>{ setSelectedCategoryId(id); setSelectedBrandId('all') })
+  const onSelectBrand = (id: string | 'all') => startTransition(()=> setSelectedBrandId(id))
+  const onSelectMonths = (n: number) => startTransition(()=> setMonths(n))
 
   return (
     <div className="space-y-6">
@@ -85,35 +83,43 @@ export default function CategoryBrandPage() {
           brands={brands}
           retailers={retailers}
           selectedCategoryId={selectedCategoryId}
-          setSelectedCategoryId={resetBrandOnCategoryChange}
+          setSelectedCategoryId={onSelectCategory}
           selectedBrandId={selectedBrandId}
-          setSelectedBrandId={setSelectedBrandId}
+          setSelectedBrandId={onSelectBrand}
           selectedRetailerId={'all'}
           setSelectedRetailerId={()=>{}}
           months={months}
-          setMonths={setMonths}
+          setMonths={onSelectMonths}
         />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Avg Rating by Category</h3>
-          <BarChartViz data={byCategory} xKey="name" barKey="value" color="#14b8a6" />
+          {isPending ? <Skeleton className="h-72" /> : (
+            <BarChartViz data={byCategory} xKey="name" barKey="value" color="#14b8a6" onBarClick={(name)=>{
+              const c = categories.find(cat=>cat.name===name); if (c) onSelectCategory(c.categoryId)
+            }} />
+          )}
         </AnimateCard>
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Top Brands</h3>
-          <BarChartViz data={topBrands.map(b=>({name:b.name, value:b.avg}))} xKey="name" barKey="value" color="#3b82f6" />
+          {isPending ? <Skeleton className="h-72" /> : (
+            <BarChartViz data={topBrands.map(b=>({name:b.name, value:b.avg}))} xKey="name" barKey="value" color="#3b82f6" onBarClick={(name)=>{
+              const b = topBrands.find(tb=>tb.name===name); if (b) onSelectBrand(b.id)
+            }} />
+          )}
         </AnimateCard>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Theme Profile (Radar)</h3>
-          <RadarChartViz data={themeProfile} />
+          {isPending ? <Skeleton className="h-80" /> : <RadarChartViz data={themeProfile} />}
         </AnimateCard>
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Brand Mix (Treemap)</h3>
-          <TreemapViz data={composition} />
+          {isPending ? <Skeleton className="h-80" /> : <TreemapViz data={composition} />}
         </AnimateCard>
       </div>
 
@@ -142,35 +148,42 @@ export default function CategoryBrandPage() {
           >Export CSV</button>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-left text-slate-500">
-                <th className="py-2 pr-4">Product</th>
-                <th className="py-2 pr-4">Brand</th>
-                <th className="py-2 pr-4">Category</th>
-                <th className="py-2 pr-4">Avg Rating</th>
-                <th className="py-2 pr-4">Reviews</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.slice(0,80).map((p)=>{
-                const revs = filteredReviews.filter(r=>r.productId===p.productId)
-                if (revs.length===0) return null
-                const avg = revs.reduce((s,r)=>s+r.rating,0)/revs.length
-                const brand = brands.find(b=>b.brandId===p.brandId)!
-                const category = categories.find(c=>c.categoryId===brand.categoryId)!
-                return (
-                  <tr key={p.productId} className="border-t">
-                    <td className="py-2 pr-4 font-medium">{p.name}</td>
-                    <td className="py-2 pr-4">{brand.name}</td>
-                    <td className="py-2 pr-4">{category.name}</td>
-                    <td className="py-2 pr-4">{avg.toFixed(2)}</td>
-                    <td className="py-2 pr-4">{revs.length}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          {isPending ? (
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-64" />
+              {Array.from({length:8}).map((_,i)=>(<Skeleton key={i} className="h-6"/>))}
+            </div>
+          ) : (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="py-2 pr-4">Product</th>
+                  <th className="py-2 pr-4">Brand</th>
+                  <th className="py-2 pr-4">Category</th>
+                  <th className="py-2 pr-4">Avg Rating</th>
+                  <th className="py-2 pr-4">Reviews</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.slice(0,80).map((p)=>{
+                  const revs = filteredReviews.filter(r=>r.productId===p.productId)
+                  if (revs.length===0) return null
+                  const avg = revs.reduce((s,r)=>s+r.rating,0)/revs.length
+                  const brand = brands.find(b=>b.brandId===p.brandId)!
+                  const category = categories.find(c=>c.categoryId===brand.categoryId)!
+                  return (
+                    <tr key={p.productId} className="border-t">
+                      <td className="py-2 pr-4 font-medium">{p.name}</td>
+                      <td className="py-2 pr-4">{brand.name}</td>
+                      <td className="py-2 pr-4">{category.name}</td>
+                      <td className="py-2 pr-4">{avg.toFixed(2)}</td>
+                      <td className="py-2 pr-4">{revs.length}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </AnimateCard>
     </div>

@@ -4,6 +4,7 @@ import { CategoryDim, BrandDim, RetailerDim } from '@/lib/types'
 import * as Select from '@radix-ui/react-select'
 import { ChevronDownIcon, CheckIcon } from '@radix-ui/react-icons'
 import { MonthSegment } from './MonthSegment'
+import { CommandCombobox, CommandOption } from './CommandCombobox'
 
 function SelectRoot({ value, onValueChange, children }: { value: string; onValueChange: (v: string)=>void; children: React.ReactNode }){
   return (
@@ -73,6 +74,7 @@ export function FilterBar({
   setMonths: (n: number) => void
 }){
   const visibleBrands = selectedCategoryId === 'all' ? brands : brands.filter(b=>b.categoryId===selectedCategoryId)
+  const brandOptions: CommandOption[] = visibleBrands.map(b=>({ value: b.brandId, label: b.name, group: categories.find(c=>c.categoryId===b.categoryId)?.name }))
 
   return (
     <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -90,15 +92,12 @@ export function FilterBar({
       </div>
       <div>
         <label className="block text-xs text-slate-500 mb-1">Brand</label>
-        <SelectRoot value={String(selectedBrandId)} onValueChange={(v)=>setSelectedBrandId(v as any)}>
-          <SelectTrigger placeholder="All Brands" />
-          <SelectContent>
-            <SelectItem value="all">All Brands</SelectItem>
-            {visibleBrands.map(b=> (
-              <SelectItem key={b.brandId} value={b.brandId}>{b.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </SelectRoot>
+        <CommandCombobox
+          value={selectedBrandId === 'all' ? '' : String(selectedBrandId)}
+          onChange={(v)=>setSelectedBrandId((v || 'all') as any)}
+          options={[{ value: '', label: 'All Brands', group: 'All' }, ...brandOptions]}
+          placeholder="All Brands"
+        />
       </div>
       <div>
         <label className="block text-xs text-slate-500 mb-1">Retailer</label>

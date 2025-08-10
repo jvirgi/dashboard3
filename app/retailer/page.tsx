@@ -1,17 +1,19 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { sampleData } from '@/lib/sampleData'
 import { BarChartViz } from '@/components/charts/BarChartViz'
 import { AnimateCard } from '@/components/AnimateCard'
 import { HeatmapGrid } from '@/components/HeatmapGrid'
 import { MonthSegment } from '@/components/MonthSegment'
+import { Skeleton } from '@/components/Skeleton'
 
 export default function RetailerPage(){
   const data = sampleData
   const { retailers, dates, reviews } = data
 
   const [months, setMonths] = useState<number>(12)
+  const [isPending, startTransition] = useTransition()
 
   const cutoff = useMemo(() => dates.sort((a,b)=>a.date.getTime()-b.date.getTime()).slice(-months).map(d=>d.dateKey), [dates, months])
 
@@ -26,7 +28,7 @@ export default function RetailerPage(){
       slot.avg += r.rating
       slot.count += 1
     }
-    return Array.from(map.values()).map(v=>({name:v.name, value: v.count? Number((v.avg/v.count).toFixed(2)) : 0}))
+    return Array.from(map.entries()).map(([id,v])=>({id, name:v.name, value: v.count? Number((v.avg/v.count).toFixed(2)) : 0}))
   }, [filteredReviews, retailers])
 
   const volumeByRetailer = useMemo(()=>{
@@ -37,7 +39,7 @@ export default function RetailerPage(){
       if (!slot) continue
       slot.count += 1
     }
-    return Array.from(map.values()).map(v=>({name:v.name, value:v.count}))
+    return Array.from(map.entries()).map(([id,v])=>({id, name:v.name, value:v.count}))
   }, [filteredReviews, retailers])
 
   const heatmap = useMemo(()=>{
@@ -64,7 +66,7 @@ export default function RetailerPage(){
           <h3 className="font-semibold">Retailer Comparison</h3>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-600">Months:</span>
-            <MonthSegment value={months} onChange={setMonths} />
+            <MonthSegment value={months} onChange={(v)=>startTransition(()=>setMonths(v))} />
           </div>
         </div>
       </div>
@@ -72,17 +74,34 @@ export default function RetailerPage(){
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Avg Rating by Retailer</h3>
-          <BarChartViz data={byRetailer} xKey="name" barKey="value" color="#ef4444" />
+          {isPending ? <Skeleton className="h-80" /> : (
+            <BarChartViz data={byRetailer} xKey="name" barKey="value" color="#ef4444" onBarClick={(name)=>{ /* could route to overview with retailer preselected */ }} />
+          )}
         </AnimateCard>
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Review Volume by Retailer</h3>
-          <BarChartViz data={volumeByRetailer} xKey="name" barKey="value" color="#f59e0b" />
+          {isPending ? <Skeleton className="h-80" /> : (
+            <BarChartViz data={volumeByRetailer} xKey="name" barKey="value" color="#f59e0b" onBarClick={(name)=>{ /* same here */ }} />
+          )}
         </AnimateCard>
       </div>
 
       <AnimateCard className="p-4">
         <h3 className="font-semibold mb-2">Monthly Avg Rating Heatmap</h3>
-        <HeatmapGrid rows={heatmap.rows} cols={heatmap.cols} values={heatmap.values} />
+        {isPending ? <Skeleton className="h-72" /> : <HeatmapGrid rows={retailers.map(r=>r.name)} cols={cutoff.map(c=>new Date(c+'-01').toLocaleDateString(undefined,{month:'short'}))} values={(()=>{
+          const rows = retailers.length
+          const cols = cutoff.length
+          const mat = Array.from({length: rows}, ()=> Array(cols).fill(NaN))
+          const idxRetailer = new Map(retailers.map((r,i)=>[r.retailerId, i]))
+          const idxCol = new Map(cutoff.map((c,i)=>[c,i]))
+          for (const rev of filteredReviews){
+            const ri = idxRetailer.get(rev.retailerId); const ci = idxCol.get(rev.dateKey)
+            if (ri===undefined || ci===undefined) continue
+            if (Number.isNaN(mat[ri][ci])) mat[ri][ci] = 0
+            mat[ri][ci] = Number.isNaN(mat[ri][ci]) ? rev.rating : (mat[ri][ci] + rev.rating) / 2
+          }
+          return mat
+        })()} />}
       </AnimateCard>
     </div>
   )
