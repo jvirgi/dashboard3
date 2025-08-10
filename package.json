@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "clean": "rimraf .next",
+    "clean": "node ./scripts/clean-safe.mjs",
     "build": "npm run clean && next build",
     "start": "next start",
     "lint": "next lint"
