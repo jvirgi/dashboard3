@@ -2,9 +2,23 @@
 
 import { ReactNode } from 'react'
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import CountUp from 'react-countup'
 
-export function KPIStat({ icon, label, value, delta }: { icon: ReactNode; label: string; value: string | number; delta?: number }){
+type KPIValue = string | number | ReactNode
+
+export function KPIStat({ icon, label, value, delta, suffix }: { icon: ReactNode; label: string; value: KPIValue; delta?: number; suffix?: string }){
   const trendingUp = (delta ?? 0) >= 0
+  const renderValue = () => {
+    if (typeof value === 'number') {
+      return (
+        <span className="tabular-nums">
+          <CountUp end={value} duration={0.8} separator="," decimals={Number.isInteger(value) ? 0 : 2} />{suffix ? <span className="ml-0.5">{suffix}</span> : null}
+        </span>
+      )
+    }
+    return value
+  }
+
   return (
     <div className="kpi">
       <div className="flex items-center justify-between">
@@ -14,7 +28,7 @@ export function KPIStat({ icon, label, value, delta }: { icon: ReactNode; label:
           </div>
           <div>
             <div className="text-xs text-slate-500">{label}</div>
-            <div className="text-xl font-semibold">{value}</div>
+            <div className="text-xl font-semibold">{renderValue()}</div>
           </div>
         </div>
         {delta !== undefined && (

@@ -7,6 +7,7 @@ import { BarChartViz } from '@/components/charts/BarChartViz'
 import { AnimateCard } from '@/components/AnimateCard'
 import { RadarChartViz } from '@/components/charts/RadarChartViz'
 import { TreemapViz } from '@/components/charts/TreemapViz'
+import { ExportButton } from '@/components/ExportButton'
 
 export default function CategoryBrandPage() {
   const data = sampleData
@@ -117,7 +118,29 @@ export default function CategoryBrandPage() {
       </div>
 
       <AnimateCard className="p-4">
-        <h3 className="font-semibold mb-2">Top Products</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold mb-2">Top Products</h3>
+          <button
+            onClick={() => {
+              const rows = [['Product','Brand','Category','Avg Rating','Reviews']]
+              for (const p of products.slice(0,80)){
+                const revs = filteredReviews.filter(r=>r.productId===p.productId)
+                if (revs.length===0) continue
+                const avg = revs.reduce((s,r)=>s+r.rating,0)/revs.length
+                const brand = brands.find(b=>b.brandId===p.brandId)!
+                const category = categories.find(c=>c.categoryId===brand.categoryId)!
+                rows.push([p.name, brand.name, category.name, avg.toFixed(2), String(revs.length)])
+              }
+              const csv = rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n')
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url; a.download = 'top-products.csv'; a.click()
+              URL.revokeObjectURL(url)
+            }}
+            className="badge border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+          >Export CSV</button>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>

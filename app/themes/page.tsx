@@ -5,6 +5,7 @@ import { sampleData } from '@/lib/sampleData'
 import { BarChartViz } from '@/components/charts/BarChartViz'
 import { AnimateCard } from '@/components/AnimateCard'
 import { TreemapViz } from '@/components/charts/TreemapViz'
+import { MonthSegment } from '@/components/MonthSegment'
 
 export default function ThemesPage(){
   const data = sampleData
@@ -37,11 +38,7 @@ export default function ThemesPage(){
           <h3 className="font-semibold">Themes</h3>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-600">Months:</span>
-            <select className="border rounded-md px-2 py-1" value={months} onChange={(e)=>setMonths(Number(e.target.value))}>
-              <option value={6}>6</option>
-              <option value={12}>12</option>
-              <option value={18}>18</option>
-            </select>
+            <MonthSegment value={months} onChange={setMonths} />
           </div>
         </div>
       </div>

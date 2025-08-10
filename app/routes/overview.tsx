@@ -108,6 +108,31 @@ export default function OverviewPage() {
     return top
   }, [filtered, themes])
 
+  const smallMultiples = useMemo(()=>{
+    return categories.map(cat=>{
+      const catBrands = brands.filter(b=>b.categoryId===cat.categoryId)
+      const brandIds = new Set(catBrands.map(b=>b.brandId))
+      const productIds = new Set(products.filter(p=>brandIds.has(p.brandId)).map(p=>p.productId))
+      const revs = reviews.filter(r=>filtered.cutoff.includes(r.dateKey) && productIds.has(r.productId))
+      const byMonth = new Map<string, { date: Date; count: number; avg: number }>()
+      for (const d of dates) {
+        if (!filtered.cutoff.includes(d.dateKey)) continue
+        byMonth.set(d.dateKey, { date: d.date, count: 0, avg: 0 })
+      }
+      for (const r of revs){
+        const slot = byMonth.get(r.dateKey); if (!slot) continue
+        slot.count++; slot.avg += r.rating
+      }
+      const rows = Array.from(byMonth.values()).map(v=>({ name: format(v.date,'MMM'), value: v.count? Number((v.avg/v.count).toFixed(2)) : 0 }))
+      return { name: cat.name, data: rows }
+    })
+  }, [categories, brands, products, reviews, filtered.cutoff, dates])
+
+  const handleThemeBarClick = (name: string) => {
+    const brand = brands.find(b=>b.name===name)
+    if (brand) setSelectedBrandId(brand.brandId)
+  }
+
   const resetBrandOnCategoryChange = (categoryId: string | 'all') => {
     setSelectedCategoryId(categoryId)
     setSelectedBrandId('all')
@@ -189,6 +214,18 @@ export default function OverviewPage() {
       <AnimateCard className="p-4">
         <h3 className="font-semibold mb-2">Rating Mix Shift</h3>
         <StackedRatingArea data={trendData} />
+      </AnimateCard>
+
+      <AnimateCard className="p-4">
+        <h3 className="font-semibold mb-2">Small Multiples: Avg Rating by Category</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {smallMultiples.map(sm=> (
+            <div key={sm.name} className="rounded-lg border p-2">
+              <div className="text-xs text-slate-600 mb-1">{sm.name}</div>
+              <Sparkline data={sm.data} dataKey="value" color="#6366f1" />
+            </div>
+          ))}
+        </div>
       </AnimateCard>
     </div>
   )
