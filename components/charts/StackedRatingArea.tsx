@@ -2,7 +2,7 @@
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush } from 'recharts'
 
-export function StackedRatingArea({ data }: { data: Array<any> }){
+export function StackedRatingArea({ data, showBrush = false }: { data: Array<any>; showBrush?: boolean }){
   const colors = {
     r1: '#ef4444',
     r2: '#f97316',
@@ -30,7 +30,7 @@ export function StackedRatingArea({ data }: { data: Array<any> }){
           <Area type="monotone" dataKey="r3" stackId="1" stroke={colors.r3} fill={colors.r3} name="3★" />
           <Area type="monotone" dataKey="r4" stackId="1" stroke={colors.r4} fill={colors.r4} name="4★" />
           <Area type="monotone" dataKey="r5" stackId="1" stroke={colors.r5} fill={colors.r5} name="5★" />
-          <Brush height={18} travellerWidth={10} stroke="#c084fc" fill="url(#brushTrackArea)" />
+          {showBrush && <Brush height={18} travellerWidth={10} stroke="#c084fc" fill="url(#brushTrackArea)" />}
         </AreaChart>
       </ResponsiveContainer>
     </div>

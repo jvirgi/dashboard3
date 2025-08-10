@@ -17,6 +17,7 @@ import { useTransition } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { TimeGranularity, Granularity } from '@/components/TimeGranularity'
 import { MultiSelectCombobox, MultiOption } from '@/components/MultiSelectCombobox'
+import { RangeSlider } from '@/components/charts/RangeSlider'
 
 export default function OverviewPage() {
   const data = sampleData
@@ -27,6 +28,7 @@ export default function OverviewPage() {
   const [months, setMonths] = useState<number>(12)
   const [granularity, setGranularity] = useState<Granularity>('month')
   const [isPending, startTransition] = useTransition()
+  const [range, setRange] = useState<[number, number]>([0, 100])
 
   const { categories, brands, products, retailers, dates, reviews, themes } = data
 
@@ -127,6 +129,13 @@ export default function OverviewPage() {
       }))
     return rows
   }, [filtered, dates, granularity])
+
+  const slicedTrend = useMemo(()=>{
+    if (trendData.length === 0) return [] as typeof trendData
+    const startIdx = Math.floor((range[0]/100) * trendData.length)
+    const endIdx = Math.ceil((range[1]/100) * trendData.length)
+    return trendData.slice(startIdx, endIdx)
+  }, [trendData, range])
 
   const ratingDist = useMemo(() => {
     const buckets = [1, 2, 3, 4, 5].map((r) => ({ name: `${r}★`, value: 0 }))
@@ -285,8 +294,13 @@ export default function OverviewPage() {
       </AnimateCard>
 
       <AnimateCard className="p-4">
-        <h3 className="font-semibold mb-2">Rating Mix Shift</h3>
-        {isPending ? <Skeleton className="h-72" /> : <StackedRatingArea data={trendData} />}
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold mb-2">Rating Mix Shift</h3>
+        </div>
+        <div className="mb-2">
+          <RangeSlider min={0} max={100} value={range} onChange={setRange} labels={slicedTrend.map(d=>d.name)} />
+        </div>
+        {isPending ? <Skeleton className="h-72" /> : <StackedRatingArea data={slicedTrend} showBrush={false} />}
       </AnimateCard>
 
       <AnimateCard className="p-4">
