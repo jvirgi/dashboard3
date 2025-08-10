@@ -39,12 +39,15 @@ export type ReviewFact = {
   reviewId: string
   productId: string
   retailerId: string
-  dateKey: string
+  dateKey: string // YYYY-MM
   rating: number // 1..5
   sentimentScore: number // 0..1
   themeIds: string[]
   text: string
   helpfulVotes: number
+  // new fields for day-level analysis
+  dateKeyDay: string // YYYY-MM-DD
+  reviewDate: Date
 }
 
 export type DataModel = {

@@ -15,6 +15,7 @@ import { ExportButton } from '@/components/ExportButton'
 import { Skeleton } from '@/components/Skeleton'
 import { useTransition } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { TimeGranularity, Granularity } from '@/components/TimeGranularity'
 
 export default function OverviewPage() {
   const data = sampleData
@@ -44,6 +45,7 @@ export default function OverviewPage() {
     })()
   )
   const [months, setMonths] = useState<number>(12)
+  const [granularity, setGranularity] = useState<Granularity>('month')
   const [isPending, startTransition] = useTransition()
 
   const { categories, brands, products, retailers, dates, reviews, themes } = data
@@ -94,14 +96,33 @@ export default function OverviewPage() {
   }, [filtered])
 
   const trendData = useMemo(() => {
-    const byMonth = new Map<string, { date: Date; count: number; avgRating: number; r1: number; r2: number; r3: number; r4: number; r5: number }>()
-    for (const d of dates) {
-      if (!filtered.cutoff.includes(d.dateKey)) continue
-      byMonth.set(d.dateKey, { date: d.date, count: 0, avgRating: 0, r1: 0, r2: 0, r3: 0, r4: 0, r5: 0 })
+    const map = new Map<string, { key: string; label: string; date: Date; count: number; avgRating: number; r1: number; r2: number; r3: number; r4: number; r5: number }>()
+    function keyFor(date: Date){
+      if (granularity==='day') return { key: date.toISOString().slice(0,10), label: date.toLocaleDateString(undefined,{ month:'short', day:'numeric'}) }
+      if (granularity==='quarter') {
+        const q = Math.floor(date.getMonth()/3)+1
+        return { key: `${date.getFullYear()}-Q${q}`, label: `Q${q} ${String(date.getFullYear()).slice(-2)}` }
+      }
+      if (granularity==='year') return { key: String(date.getFullYear()), label: String(date.getFullYear()) }
+      return { key: `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`, label: date.toLocaleDateString(undefined,{ month:'short', year:'2-digit'}) }
     }
+
+    const consideredDates = dates.filter(d=>filtered.cutoff.includes(d.dateKey)).map(d=>d.date)
+
+    // seed buckets based on selected months range and granularity
+    for (const d of consideredDates) {
+      const k = keyFor(d)
+      map.set(k.key, { key: k.key, label: k.label, date: d, count: 0, avgRating: 0, r1:0,r2:0,r3:0,r4:0,r5:0 })
+      if (granularity==='day'){
+        // seed all days in month range roughly: skip for simplicity, will be filled by reviews
+      }
+    }
+
     for (const r of filtered.filteredReviews) {
-      const slot = byMonth.get(r.dateKey)
-      if (!slot) continue
+      const date = r.reviewDate
+      const k = keyFor(date)
+      if (!map.has(k.key)) map.set(k.key, { key: k.key, label: k.label, date, count: 0, avgRating: 0, r1:0,r2:0,r3:0,r4:0,r5:0 })
+      const slot = map.get(k.key)!
       slot.count += 1
       slot.avgRating += r.rating
       if (r.rating === 1) slot.r1++
@@ -110,14 +131,17 @@ export default function OverviewPage() {
       if (r.rating === 4) slot.r4++
       if (r.rating === 5) slot.r5++
     }
-    const rows = Array.from(byMonth.values()).map((v) => ({
-      name: format(v.date, 'MMM yy'),
-      reviews: v.count,
-      rating: v.count ? Number((v.avgRating / v.count).toFixed(2)) : 0,
-      r1: v.r1, r2: v.r2, r3: v.r3, r4: v.r4, r5: v.r5,
-    }))
+
+    const rows = Array.from(map.values())
+      .sort((a,b)=>a.date.getTime()-b.date.getTime())
+      .map((v) => ({
+        name: v.label,
+        reviews: v.count,
+        rating: v.count ? Number((v.avgRating / v.count).toFixed(2)) : 0,
+        r1: v.r1, r2: v.r2, r3: v.r3, r4: v.r4, r5: v.r5,
+      }))
     return rows
-  }, [filtered, dates])
+  }, [filtered, dates, granularity])
 
   const ratingDist = useMemo(() => {
     const buckets = [1, 2, 3, 4, 5].map((r) => ({ name: `${r}★`, value: 0 }))
@@ -244,7 +268,10 @@ export default function OverviewPage() {
         <AnimateCard className="p-4 xl:col-span-2" >
           <div id={trendCardId} className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Monthly Trend</h3>
-            <ExportButton targetId={trendCardId} filename="monthly-trend.png" />
+            <div className="flex items-center gap-2">
+              <TimeGranularity value={granularity} onChange={(g)=> startTransition(()=> setGranularity(g))} />
+              <ExportButton targetId={trendCardId} filename="monthly-trend.png" />
+            </div>
           </div>
           {isPending ? <Skeleton className="h-72" /> : <LineChartViz data={trendData} yLeftKey="reviews" yRightKey="rating" />}
         </AnimateCard>

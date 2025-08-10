@@ -166,6 +166,11 @@ for (let i = 0; i < TARGET_REVIEWS; i++) {
 
   const text = buildReviewText(rand, themes.filter(t=>themeIds.includes(t.themeId)), rating)
 
+  // construct random day within the month
+  const day = 1 + Math.floor(rand()*28)
+  const d = new Date(date.year, date.month - 1, day)
+  const dateKeyDay = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+
   reviews.push({
     reviewId: `r_${i}`,
     productId: product.productId,
@@ -175,7 +180,9 @@ for (let i = 0; i < TARGET_REVIEWS; i++) {
     sentimentScore: Number(sentiment.toFixed(3)),
     themeIds,
     text,
-    helpfulVotes: Math.floor(rand()*20)
+    helpfulVotes: Math.floor(rand()*20),
+    dateKeyDay,
+    reviewDate: d,
   })
 }
 
