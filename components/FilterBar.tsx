@@ -28,11 +28,13 @@ function SelectTrigger({ placeholder }: { placeholder: string }){
 
 function SelectContent({ children }: { children: React.ReactNode }){
   return (
-    <Select.Content className="overflow-hidden rounded-xl border bg-white/95 backdrop-blur shadow-soft">
-      <Select.Viewport className="p-1">
-        {children}
-      </Select.Viewport>
-    </Select.Content>
+    <Select.Portal>
+      <Select.Content position="popper" sideOffset={8} className="z-50 overflow-hidden rounded-xl border bg-white/95 backdrop-blur shadow-soft">
+        <Select.Viewport className="p-1">
+          {children}
+        </Select.Viewport>
+      </Select.Content>
+    </Select.Portal>
   )
 }
 

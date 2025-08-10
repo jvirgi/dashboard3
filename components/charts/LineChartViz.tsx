@@ -20,11 +20,15 @@ export function LineChartViz({ data, yLeftKey, yRightKey, syncId = 'overview', t
   return (
     <div className="h-80">
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={data} syncId={syncId} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+        <ComposedChart data={data} syncId={syncId} margin={{ top: 10, right: 20, left: 0, bottom: 24 }}>
           <defs>
             <linearGradient id="gradArea" x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.35}/>
               <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.05}/>
+            </linearGradient>
+            <linearGradient id="brushTrack" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.25}/>
+              <stop offset="100%" stopColor="#f472b6" stopOpacity={0.15}/>
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -36,7 +40,7 @@ export function LineChartViz({ data, yLeftKey, yRightKey, syncId = 'overview', t
           <ReferenceLine yAxisId="right" y={targetRating} stroke="#10b981" strokeDasharray="4 4" label="Target" />
           <Area yAxisId="left" type="monotone" dataKey={yLeftKey} fill="url(#gradArea)" stroke="#60a5fa" name="Reviews" />
           <Line yAxisId="right" type="monotone" dataKey={yRightKey} stroke="#8b5cf6" strokeWidth={2} dot={false} name="Avg Rating" />
-          <Brush height={20} travellerWidth={8} />
+          <Brush height={26} travellerWidth={10} className="rounded-lg" stroke="#c084fc" fill="url(#brushTrack)" />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
