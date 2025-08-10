@@ -16,62 +16,47 @@ import { Skeleton } from '@/components/Skeleton'
 import { useTransition } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { TimeGranularity, Granularity } from '@/components/TimeGranularity'
+import { MultiSelectCombobox, MultiOption } from '@/components/MultiSelectCombobox'
 
 export default function OverviewPage() {
   const data = sampleData
   const search = useSearchParams()
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'all'>(
-    (()=>{
-      const catName = search.get('category')
-      if (!catName) return 'all'
-      const c = data.categories.find(c=>c.name.toLowerCase()===catName.toLowerCase())
-      return c?.categoryId || 'all'
-    })()
-  )
-  const [selectedBrandId, setSelectedBrandId] = useState<string | 'all'>(
-    (()=>{
-      const brandName = search.get('brand')
-      if (!brandName) return 'all'
-      const b = data.brands.find(b=>b.name.toLowerCase()===brandName.toLowerCase())
-      return b?.brandId || 'all'
-    })()
-  )
-  const [selectedRetailerId, setSelectedRetailerId] = useState<string | 'all'>(
-    (()=>{
-      const retName = search.get('retailer')
-      if (!retName) return 'all'
-      const r = data.retailers.find(r=>r.name.toLowerCase()===retName.toLowerCase())
-      return r?.retailerId || 'all'
-    })()
-  )
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>([])
+  const [selectedRetailerIds, setSelectedRetailerIds] = useState<string[]>([])
   const [months, setMonths] = useState<number>(12)
   const [granularity, setGranularity] = useState<Granularity>('month')
   const [isPending, startTransition] = useTransition()
 
   const { categories, brands, products, retailers, dates, reviews, themes } = data
 
+  const categoryOptions: MultiOption[] = categories.map(c=>({ value: c.categoryId, label: c.name }))
+  const brandOptions: MultiOption[] = brands.map(b=>({ value: b.brandId, label: b.name, group: categories.find(c=>c.categoryId===b.categoryId)?.name }))
+  const retailerOptions: MultiOption[] = retailers.map(r=>({ value: r.retailerId, label: r.name }))
+
+  const cutoffKeys = useMemo(() => dates.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(-months).map(d=>d.dateKey), [dates, months])
+
   const filtered = useMemo(() => {
-    const cutoff = dates
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .slice(-months)
-      .map((d) => d.dateKey)
+    const cutoff = cutoffKeys
 
-    const brandIdsInCategory = selectedCategoryId === 'all'
+    const brandIdsInCategory = selectedCategoryIds.length === 0
       ? new Set(brands.map((b) => b.brandId))
-      : new Set(brands.filter((b) => b.categoryId === selectedCategoryId).map((b) => b.brandId))
+      : new Set(brands.filter((b) => selectedCategoryIds.includes(b.categoryId)).map((b) => b.brandId))
 
-    const productIdsInBrand = selectedBrandId === 'all'
+    const productIdsInBrand = selectedBrandIds.length === 0
       ? new Set(products.filter((p) => brandIdsInCategory.has(p.brandId)).map((p) => p.productId))
-      : new Set(products.filter((p) => p.brandId === selectedBrandId).map((p) => p.productId))
+      : new Set(products.filter((p) => selectedBrandIds.includes(p.brandId)).map((p) => p.productId))
+
+    const retailerSet = selectedRetailerIds.length === 0 ? null : new Set(selectedRetailerIds)
 
     const filteredReviews = reviews.filter((r) =>
       cutoff.includes(r.dateKey) &&
       productIdsInBrand.has(r.productId) &&
-      (selectedRetailerId === 'all' || r.retailerId === selectedRetailerId)
+      (!retailerSet || retailerSet.has(r.retailerId))
     )
 
     return { filteredReviews, cutoff }
-  }, [reviews, months, dates, brands, products, selectedCategoryId, selectedBrandId, selectedRetailerId])
+  }, [reviews, months, dates, brands, products, selectedCategoryIds, selectedBrandIds, selectedRetailerIds, cutoffKeys])
 
   const kpis = useMemo(() => {
     const count = filtered.filteredReviews.length
@@ -187,18 +172,18 @@ export default function OverviewPage() {
 
   const handleThemeBarClick = (name: string) => {
     const brand = brands.find(b=>b.name===name)
-    if (brand) setSelectedBrandId(brand.brandId)
+    if (brand) setSelectedBrandIds([brand.brandId])
   }
 
   const resetBrandOnCategoryChange = (categoryId: string | 'all') => {
     startTransition(()=>{
-      setSelectedCategoryId(categoryId)
-      setSelectedBrandId('all')
+      setSelectedCategoryIds(categoryId === 'all' ? [] : [categoryId])
+      setSelectedBrandIds([])
     })
   }
 
-  const onSetBrand = (v: string | 'all') => startTransition(()=>setSelectedBrandId(v))
-  const onSetRetailer = (v: string | 'all') => startTransition(()=>setSelectedRetailerId(v))
+  const onSetBrand = (v: string[] | 'all') => startTransition(()=>setSelectedBrandIds(v === 'all' ? [] : v))
+  const onSetRetailer = (v: string[] | 'all') => startTransition(()=>setSelectedRetailerIds(v === 'all' ? [] : v))
   const onSetMonths = (n: number) => startTransition(()=>setMonths(n))
 
   const kpiSparkline = useMemo(()=> trendData.map(d=>({ name: d.name, value: d.rating })), [trendData])
@@ -210,19 +195,24 @@ export default function OverviewPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
-        <FilterBar
-          categories={categories}
-          brands={brands}
-          retailers={retailers}
-          selectedCategoryId={selectedCategoryId}
-          setSelectedCategoryId={resetBrandOnCategoryChange}
-          selectedBrandId={selectedBrandId}
-          setSelectedBrandId={onSetBrand}
-          selectedRetailerId={selectedRetailerId}
-          setSelectedRetailerId={onSetRetailer}
-          months={months}
-          setMonths={onSetMonths}
-        />
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Categories</label>
+            <MultiSelectCombobox values={selectedCategoryIds} onChange={(vals)=>startTransition(()=>setSelectedCategoryIds(vals))} options={categoryOptions} placeholder="All Categories" />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Brands</label>
+            <MultiSelectCombobox values={selectedBrandIds} onChange={(vals)=>startTransition(()=>setSelectedBrandIds(vals))} options={brandOptions} placeholder="All Brands" />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Retailers</label>
+            <MultiSelectCombobox values={selectedRetailerIds} onChange={(vals)=>startTransition(()=>setSelectedRetailerIds(vals))} options={retailerOptions} placeholder="All Retailers" />
+          </div>
+          <div className="md:ml-auto">
+            <label className="block text-xs text-slate-500 mb-1">Months</label>
+            <TimeGranularity value={granularity} onChange={(g)=> startTransition(()=> setGranularity(g))} />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -273,7 +263,7 @@ export default function OverviewPage() {
               <ExportButton targetId={trendCardId} filename="monthly-trend.png" />
             </div>
           </div>
-          {isPending ? <Skeleton className="h-72" /> : <LineChartViz data={trendData} yLeftKey="reviews" yRightKey="rating" />}
+          {isPending ? <Skeleton className="h-72" /> : <LineChartViz data={trendData} yLeftKey="reviews" yRightKey="rating" showBrush />}
         </AnimateCard>
         <AnimateCard className="p-4">
           <div id={ratingCardId} className="flex items-center justify-between mb-2">
@@ -290,7 +280,7 @@ export default function OverviewPage() {
           <ExportButton targetId={themeCardId} filename="top-themes.png" />
         </div>
         {isPending ? <Skeleton className="h-72" /> : <BarChartViz data={themeTop} xKey="name" barKey="count" color="#7c3aed" onBarClick={(name)=>{
-          const b = brands.find(br=>br.name===name); if (b) onSetBrand(b.brandId)
+          const b = brands.find(br=>br.name===name); if (b) setSelectedBrandIds([b.brandId])
         }} />}
       </AnimateCard>
 

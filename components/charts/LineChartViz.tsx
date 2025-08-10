@@ -16,7 +16,7 @@ function TooltipContent({ active, payload, label }: any){
   )
 }
 
-export function LineChartViz({ data, yLeftKey, yRightKey, syncId = 'overview', targetRating = 4.2 }: { data: any[]; yLeftKey: string; yRightKey: string; syncId?: string; targetRating?: number }){
+export function LineChartViz({ data, yLeftKey, yRightKey, syncId = 'overview', targetRating = 4.2, showBrush = false }: { data: any[]; yLeftKey: string; yRightKey: string; syncId?: string; targetRating?: number; showBrush?: boolean }){
   return (
     <div className="h-80">
       <ResponsiveContainer width="100%" height="100%">
@@ -40,7 +40,7 @@ export function LineChartViz({ data, yLeftKey, yRightKey, syncId = 'overview', t
           <ReferenceLine yAxisId="right" y={targetRating} stroke="#10b981" strokeDasharray="4 4" label="Target" />
           <Area yAxisId="left" type="monotone" dataKey={yLeftKey} fill="url(#gradArea)" stroke="#60a5fa" name="Reviews" />
           <Line yAxisId="right" type="monotone" dataKey={yRightKey} stroke="#8b5cf6" strokeWidth={2} dot={false} name="Avg Rating" />
-          <Brush height={18} travellerWidth={10} stroke="#c084fc" fill="url(#brushTrack)" />
+          {showBrush && <Brush height={18} travellerWidth={10} stroke="#c084fc" fill="url(#brushTrack)" />}
         </ComposedChart>
       </ResponsiveContainer>
     </div>
