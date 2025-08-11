@@ -19,10 +19,13 @@ export default function AdminPage(){
   }, [])
   useEffect(()=>{
     localStorage.setItem('voc-admin-settings', JSON.stringify(settings))
-    // apply simple CSS vars for demo
     const root = document.documentElement
     root.style.setProperty('--header-from', settings.headerGradientFrom)
     root.style.setProperty('--header-to', settings.headerGradientTo)
+    root.style.setProperty('--brush-from', settings.brushFrom)
+    root.style.setProperty('--brush-to', settings.brushTo)
+    root.style.setProperty('--kpi-pos', settings.kpiChipPositive)
+    root.style.setProperty('--kpi-neg', settings.kpiChipNegative)
   }, [settings])
 
   const onChange = (key: keyof typeof defaultSettings) => (e: React.ChangeEvent<HTMLInputElement>) => {
