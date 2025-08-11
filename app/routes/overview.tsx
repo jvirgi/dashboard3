@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useId, useEffect } from 'react'
 import { format } from 'date-fns'
-import { sampleData } from '@/lib/sampleData'
+import { useSampleData } from '@/lib/useSampleData'
 import { ArrowUpRight, Star, MessageSquare, TrendingUp } from 'lucide-react'
 import { LineChartViz } from '@/components/charts/LineChartViz'
 import { BarChartViz } from '@/components/charts/BarChartViz'
@@ -24,8 +24,24 @@ import { ActiveFilterChips } from '@/components/ActiveFilterChips'
 import { ReviewsModal } from '@/components/ReviewsModal'
 
 export default function OverviewPage() {
-  const data = sampleData
+  const data = useSampleData()
   const search = useSearchParams()
+  // show skeleton before data ready
+  if (!data) {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
+          <div className="h-8 skeleton" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {Array.from({length:4}).map((_,i)=>(<div key={i} className="skeleton h-24 rounded-xl"/>))}
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {Array.from({length:3}).map((_,i)=>(<div key={i} className="skeleton h-80 rounded-xl"/>))}
+        </div>
+      </div>
+    )
+  }
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>([])
   const [selectedRetailerIds, setSelectedRetailerIds] = useState<string[]>([])

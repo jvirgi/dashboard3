@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useTransition } from 'react'
-import { sampleData } from '@/lib/sampleData'
+import { useSampleData } from '@/lib/useSampleData'
 import { FilterBar } from '@/components/FilterBar'
 import { BarChartViz } from '@/components/charts/BarChartViz'
 import { AnimateCard } from '@/components/AnimateCard'
@@ -13,8 +13,21 @@ import { useRouter } from 'next/navigation'
 import { ReviewsModal } from '@/components/ReviewsModal'
 
 export default function CategoryBrandPage() {
-  const data = sampleData
+  const data = useSampleData()
   const router = useRouter()
+  if (!data) {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
+          <div className="h-8 skeleton" />
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="skeleton h-80 rounded-xl"/>
+          <div className="skeleton h-80 rounded-xl"/>
+        </div>
+      </div>
+    )
+  }
   const { categories, brands, products, dates, reviews, retailers, themes } = data
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'all'>('all')
