@@ -88,7 +88,7 @@ export function CommandCombobox({
         </div>
       </button>
       {open && coords && createPortal(
-        <div ref={menuRef} style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width }} className="z-[2000] max-w-[90vw] overflow-hidden rounded-xl border bg-white/95 backdrop-blur shadow-soft">
+        <div ref={menuRef} style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width }} className="z-[5000] max-w-[90vw] overflow-hidden rounded-xl border bg-white/95 backdrop-blur shadow-soft max-h-[60vh] overflow-auto">
           <Command shouldFilter={true} filter={(val, search)=>val.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
             <div className="flex items-center gap-2 border-b px-3 py-2">
               <MagnifyingGlassIcon />

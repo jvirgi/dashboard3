@@ -45,7 +45,7 @@ export function TimeframeControl({ dates, value, onChange }: { dates: DateDim[];
         <button onClick={()=>{ onChange({ mode:'custom', startKey: startKey!, endKey: endKey! }); setOpen(o=>!o) }} className={`px-3 py-1.5 text-sm rounded-full transition ${value.mode==='custom' ? 'bg-white shadow-soft text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}>Custom</button>
       </div>
       {value.mode==='custom' && open && (
-        <div className="z-[1600] absolute left-0 mt-2 rounded-xl border bg-white/95 backdrop-blur shadow-soft p-3">
+        <div className="z-[4500] absolute left-0 mt-2 rounded-xl border bg-white/95 backdrop-blur shadow-soft p-3 max-h-[70vh] overflow-auto">
           <div className="text-xs text-slate-500 mb-1">Start</div>
           <MonthSelect options={sorted} value={startKey!} onValueChange={(v)=>setStart(v)} />
           <div className="text-xs text-slate-500 mt-3 mb-1">End</div>

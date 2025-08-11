@@ -37,8 +37,11 @@ export default function OverviewPage() {
   const [selectedRegions, setSelectedRegions] = useState<string[]>([])
   const [selectedThemes, setSelectedThemes] = useState<string[]>([])
   const [ratingRange, setRatingRange] = useState<[number, number]>([1,5])
+  const [productQuery, setProductQuery] = useState('')
+  const [selectedAttributes, setSelectedAttributes] = useState<string[]>([])
 
   const { categories, brands, products, retailers, dates, reviews, themes } = data
+  const allAttributes = useMemo(()=> Array.from(new Set(products.flatMap(p=>p.attributes))).map(a=>({ value:a, label:a })), [products])
 
   const categoryOptions: MultiOption[] = categories.map(c=>({ value: c.categoryId, label: c.name }))
   const brandOptions: MultiOption[] = brands.map(b=>({ value: b.brandId, label: b.name, group: categories.find(c=>c.categoryId===b.categoryId)?.name }))
@@ -74,6 +77,7 @@ export default function OverviewPage() {
     const retailerSet = selectedRetailerIds.length === 0 ? null : new Set(selectedRetailerIds)
     const regionSet = selectedRegions.length === 0 ? null : new Set(selectedRegions)
     const themeSet = selectedThemes.length === 0 ? null : new Set(selectedThemes)
+    const attrSet = selectedAttributes.length === 0 ? null : new Set(selectedAttributes)
 
     const filteredReviews = reviews.filter((r) =>
       cutoff.includes(r.dateKey) &&
@@ -81,11 +85,13 @@ export default function OverviewPage() {
       (!retailerSet || retailerSet.has(r.retailerId)) &&
       (!regionSet || regionSet.has(r.region)) &&
       (r.rating >= ratingRange[0] && r.rating <= ratingRange[1]) &&
-      (!themeSet || r.themeIds.some(t=>themeSet.has(t)))
+      (!themeSet || r.themeIds.some(t=>themeSet.has(t))) &&
+      (productQuery ? products.find(p=>p.productId===r.productId)?.name.toLowerCase().includes(productQuery.toLowerCase()) : true) &&
+      (!attrSet || products.find(p=>p.productId===r.productId)?.attributes.some(a=>attrSet.has(a)))
     )
 
     return { filteredReviews, cutoff }
-  }, [reviews, brands, products, cutoffKeys, selectedCategoryIds, selectedBrandIds, selectedRetailerIds, selectedRegions, selectedThemes, ratingRange])
+  }, [reviews, brands, products, cutoffKeys, selectedCategoryIds, selectedBrandIds, selectedRetailerIds, selectedRegions, selectedThemes, ratingRange, productQuery, selectedAttributes])
 
   const activeChips = useMemo(()=>{
     const chips: Array<{key:string; label:string}> = []
@@ -95,8 +101,10 @@ export default function OverviewPage() {
     if (selectedRegions.length) chips.push({ key:'reg', label:`${selectedRegions.join(',')}` })
     if (selectedThemes.length) chips.push({ key:'th', label:`${selectedThemes.length} themes` })
     if (ratingRange[0]!==1 || ratingRange[1]!==5) chips.push({ key:'rat', label:`${ratingRange[0]}★–${ratingRange[1]}★` })
+    if (productQuery) chips.push({ key:'pq', label:`Product: ${productQuery}` })
+    if (selectedAttributes.length) chips.push({ key:'attr', label:`${selectedAttributes.length} attributes` })
     return chips
-  }, [selectedCategoryIds, selectedBrandIds, selectedRetailerIds, selectedRegions, selectedThemes, ratingRange])
+  }, [selectedCategoryIds, selectedBrandIds, selectedRetailerIds, selectedRegions, selectedThemes, ratingRange, productQuery, selectedAttributes])
 
   const kpis = useMemo(() => {
     const count = filtered.filteredReviews.length
@@ -271,6 +279,8 @@ export default function OverviewPage() {
             if (key==='reg') setSelectedRegions([])
             if (key==='th') setSelectedThemes([])
             if (key==='rat') setRatingRange([1,5])
+            if (key==='pq') setProductQuery('')
+            if (key==='attr') setSelectedAttributes([])
           }} />
         </div>
       </div>
@@ -292,10 +302,16 @@ export default function OverviewPage() {
               <label className="text-sm">To</label>
               <input type="number" min={1} max={5} value={ratingRange[1]} onChange={(e)=>setRatingRange([ratingRange[0], Number(e.target.value)])} className="w-20 border rounded px-2 py-1" />
             </div>
+          )},
+          { title: 'Product Name', content: (
+            <input type="text" placeholder="Search product name" value={productQuery} onChange={(e)=>setProductQuery(e.target.value)} className="w-full border rounded px-3 py-2" />
+          )},
+          { title: 'Attributes', content: (
+            <MultiSelectCombobox values={selectedAttributes} onChange={setSelectedAttributes} options={allAttributes} placeholder="All Attributes" />
           )}
         ]}
         onApply={()=> setDrawerOpen(false)}
-        onReset={()=>{ setSelectedRegions([]); setSelectedThemes([]); setRatingRange([1,5]) }}
+        onReset={()=>{ setSelectedRegions([]); setSelectedThemes([]); setRatingRange([1,5]); setProductQuery(''); setSelectedAttributes([]) }}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
