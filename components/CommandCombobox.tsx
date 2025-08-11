@@ -103,8 +103,8 @@ export function CommandCombobox({
       </button>
       {open && coords && createPortal(
         <>
-          <div onMouseDown={closeMenu} onTouchStart={closeMenu} style={{ position:'fixed', inset:0, zIndex: 4000 }} />
-          <div ref={menuRef} style={{ position: 'fixed', top: coords.top, left: coords.left, width: Math.min(coords.width, window.innerWidth - 16), zIndex: 5000 }} className="max-w-[90vw] rounded-xl border bg-white/95 backdrop-blur shadow-soft max-h-[60vh] overflow-auto">
+          <div onMouseDown={closeMenu} onTouchStart={closeMenu} style={{ position:'fixed', inset:0, zIndex: 19000 }} />
+          <div ref={menuRef} style={{ position: 'fixed', top: coords.top, left: coords.left, width: Math.min(coords.width, window.innerWidth - 16), zIndex: 20000 }} className="max-w-[90vw] rounded-xl border bg-white/95 backdrop-blur shadow-soft max-h-[60vh] overflow-auto">
             <Command shouldFilter={true} filter={(val, search)=>val.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
               <div className="flex items-center gap-2 border-b px-3 py-2">
                 <MagnifyingGlassIcon />

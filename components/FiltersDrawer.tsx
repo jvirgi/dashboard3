@@ -21,8 +21,8 @@ export function FiltersDrawer({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/30" />
-        <Dialog.Content className="fixed right-0 top-0 h-full w-[420px] max-w-[90vw] bg-white shadow-soft border-l flex flex-col overflow-hidden">
+        <Dialog.Overlay className="fixed inset-0 bg-black/30 z-[15000]" />
+        <Dialog.Content className="fixed right-0 top-0 h-full w-[420px] max-w-[90vw] bg-white shadow-soft border-l flex flex-col overflow-hidden z-[16000]">
           <div className="p-4 flex items-center justify-between border-b">
             <div className="flex items-center gap-2 text-slate-700"><MixerHorizontalIcon /> Filters</div>
             <Dialog.Close className="badge border-slate-200 bg-white hover:bg-slate-50 text-slate-700"><Cross2Icon /></Dialog.Close>
