@@ -32,31 +32,55 @@ export function GlobalSearch(){
   const suggestions = React.useMemo(()=>{
     const q = query.trim().toLowerCase()
     const list: Suggestion[] = []
-    const { products, brands, categories, retailers, themes } = sampleData
+    const { products, brands, categories, retailers, themes, reviews } = sampleData
+
+    if (!q) {
+      // Show all brands (next level under categories) ordered by review volume
+      const brandCount = new Map<string, number>()
+      for (const b of brands) brandCount.set(b.brandId, 0)
+      for (const r of reviews) {
+        const p = products.find(p=>p.productId===r.productId)
+        if (!p) continue
+        brandCount.set(p.brandId, (brandCount.get(p.brandId) || 0) + 1)
+      }
+      const brandSuggestions: Suggestion[] = brands
+        .map(b=>{
+          const cat = categories.find(c=>c.categoryId===b.categoryId)!
+          const count = brandCount.get(b.brandId) || 0
+          return { id: b.brandId, type:'Brand' as const, label: b.name, meta: `${cat.name} • ${count.toLocaleString()} reviews`, keyword: b.name.toLowerCase() }
+        })
+        .sort((a,b)=>{
+          const ac = Number(a.meta?.split('•').pop()?.replace(/[^0-9]/g,'') || 0)
+          const bc = Number(b.meta?.split('•').pop()?.replace(/[^0-9]/g,'') || 0)
+          return bc - ac
+        })
+      return brandSuggestions
+    }
+
+    // Global search across attributes when user types
     for (const p of products) {
       const brand = brands.find(b=>b.brandId===p.brandId)!
       const cat = categories.find(c=>c.categoryId===brand.categoryId)!
       const hay = `${p.name} ${brand.name} ${cat.name} ${p.attributes.join(' ')}`.toLowerCase()
-      if (!q || hay.includes(q)) list.push({ id: p.productId, type:'Product', label: p.name, meta: `${brand.name} • ${cat.name}`, keyword: p.name.toLowerCase() })
+      if (hay.includes(q)) list.push({ id: p.productId, type:'Product', label: p.name, meta: `${brand.name} • ${cat.name}`, keyword: p.name.toLowerCase() })
     }
     for (const b of brands){
       const cat = categories.find(c=>c.categoryId===b.categoryId)!
-      if (!q || `${b.name} ${cat.name}`.toLowerCase().includes(q)) list.push({ id: b.brandId, type:'Brand', label: b.name, meta: cat.name, keyword: b.name.toLowerCase() })
+      if (`${b.name} ${cat.name}`.toLowerCase().includes(q)) list.push({ id: b.brandId, type:'Brand', label: b.name, meta: cat.name, keyword: b.name.toLowerCase() })
     }
     for (const c of categories){
-      if (!q || c.name.toLowerCase().includes(q)) list.push({ id: c.categoryId, type:'Category', label: c.name, keyword: c.name.toLowerCase() })
+      if (c.name.toLowerCase().includes(q)) list.push({ id: c.categoryId, type:'Category', label: c.name, keyword: c.name.toLowerCase() })
     }
     for (const r of retailers){
-      if (!q || r.name.toLowerCase().includes(q)) list.push({ id: r.retailerId, type:'Retailer', label: r.name, keyword: r.name.toLowerCase() })
+      if (r.name.toLowerCase().includes(q)) list.push({ id: r.retailerId, type:'Retailer', label: r.name, keyword: r.name.toLowerCase() })
     }
     for (const t of themes){
-      if (!q || t.name.toLowerCase().includes(q)) list.push({ id: t.themeId, type:'Theme', label: t.name, keyword: t.name.toLowerCase() })
+      if (t.name.toLowerCase().includes(q)) list.push({ id: t.themeId, type:'Theme', label: t.name, keyword: t.name.toLowerCase() })
     }
     return list.slice(0, 50)
   }, [query])
 
   const onSelect = (s: Suggestion) => {
-    // Navigate to overview with a q param to prefilter
     const q = encodeURIComponent(s.label)
     router.push(`/?q=${q}`)
     setOpen(false)
