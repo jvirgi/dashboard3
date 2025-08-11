@@ -54,9 +54,7 @@ export function CommandCombobox({
   React.useEffect(()=>{
     if (!open) return
     const onResize = () => {
-      if (!triggerRef.current) return
-      const rect = triggerRef.current.getBoundingClientRect()
-      setCoords({ top: rect.bottom + 8, left: rect.left, width: rect.width })
+      setOpen(false)
     }
     const onClickAway = (e: MouseEvent) => {
       const t = e.target as Node
