@@ -44,7 +44,9 @@ export function CommandCombobox({
       inputRef.current?.focus()
       if (triggerRef.current){
         const rect = triggerRef.current.getBoundingClientRect()
-        setCoords({ top: rect.bottom + 8, left: rect.left, width: rect.width })
+        const left = Math.min(rect.left, window.innerWidth - rect.width - 8)
+        const top = Math.min(rect.bottom + 8, window.innerHeight - 200)
+        setCoords({ top, left, width: rect.width })
       }
     }, 0)
   }
@@ -88,7 +90,7 @@ export function CommandCombobox({
         </div>
       </button>
       {open && coords && createPortal(
-        <div ref={menuRef} style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width }} className="z-[5000] max-w-[90vw] overflow-hidden rounded-xl border bg-white/95 backdrop-blur shadow-soft max-h-[60vh] overflow-auto">
+        <div ref={menuRef} style={{ position: 'fixed', top: coords.top, left: coords.left, width: Math.min(coords.width, window.innerWidth - 16) }} className="z-[5000] max-w-[90vw] rounded-xl border bg-white/95 backdrop-blur shadow-soft max-h-[60vh] overflow-auto">
           <Command shouldFilter={true} filter={(val, search)=>val.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
             <div className="flex items-center gap-2 border-b px-3 py-2">
               <MagnifyingGlassIcon />
