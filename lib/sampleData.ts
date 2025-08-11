@@ -46,7 +46,12 @@ for (const c of categories) {
       const productId = `${brandId}_p${i+1}`
       const priceTier = priceTiers[Math.floor(rand()*priceTiers.length)]
       const nameSuffix = ['Serum','Cream','Gel','Foam','Brush','Kit','Pads','Strips','Cleanser'][i % 9]
-      products.push({ productId, brandId, name: `${name} ${nameSuffix} ${i+1}`, priceTier })
+      const attrs = [
+        rand()>0.5 ? 'Fragrance-free' : 'Fragranced',
+        rand()>0.5 ? 'Sensitive-skin' : 'All-skin',
+        rand()>0.5 ? 'Vegan' : 'Regular',
+      ]
+      products.push({ productId, brandId, name: `${name} ${nameSuffix} ${i+1}`, priceTier, attributes: attrs })
     }
   }
 }
@@ -143,6 +148,13 @@ const reviews: ReviewFact[] = []
 const productById = new Map(products.map(p=>[p.productId, p]))
 const brandById = new Map(brands.map(b=>[b.brandId, b]))
 
+const regions: Array<{ region: ReviewFact['region']; country: string[] }> = [
+  { region: 'NA', country: ['US','CA'] },
+  { region: 'EU', country: ['UK','DE','FR','IT','ES'] },
+  { region: 'APAC', country: ['JP','KR','AU','SG'] },
+  { region: 'LATAM', country: ['BR','MX','AR','CL'] }
+]
+
 for (let i = 0; i < TARGET_REVIEWS; i++) {
   const product = pick(rand, products)
   const brand = brandById.get(product.brandId)!
@@ -171,6 +183,9 @@ for (let i = 0; i < TARGET_REVIEWS; i++) {
   const d = new Date(date.year, date.month - 1, day)
   const dateKeyDay = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
+  const geo = pick(rand, regions)
+  const country = pick(rand, geo.country)
+
   reviews.push({
     reviewId: `r_${i}`,
     productId: product.productId,
@@ -183,6 +198,8 @@ for (let i = 0; i < TARGET_REVIEWS; i++) {
     helpfulVotes: Math.floor(rand()*20),
     dateKeyDay,
     reviewDate: d,
+    region: geo.region,
+    country,
   })
 }
 

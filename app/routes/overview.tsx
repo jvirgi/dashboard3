@@ -19,6 +19,8 @@ import { TimeGranularity, Granularity } from '@/components/TimeGranularity'
 import { MultiSelectCombobox, MultiOption } from '@/components/MultiSelectCombobox'
 import { RangeSlider } from '@/components/charts/RangeSlider'
 import { TimeframeControl, TimeframeValue } from '@/components/TimeframeControl'
+import { FiltersDrawer } from '@/components/FiltersDrawer'
+import { ActiveFilterChips } from '@/components/ActiveFilterChips'
 
 export default function OverviewPage() {
   const data = sampleData
@@ -31,12 +33,19 @@ export default function OverviewPage() {
   const [isPending, startTransition] = useTransition()
   const [range, setRange] = useState<[number, number]>([0, 100])
   const [timeframe, setTimeframe] = useState<TimeframeValue>({ mode: 'preset', months: 12 })
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([])
+  const [selectedThemes, setSelectedThemes] = useState<string[]>([])
+  const [ratingRange, setRatingRange] = useState<[number, number]>([1,5])
 
   const { categories, brands, products, retailers, dates, reviews, themes } = data
 
   const categoryOptions: MultiOption[] = categories.map(c=>({ value: c.categoryId, label: c.name }))
   const brandOptions: MultiOption[] = brands.map(b=>({ value: b.brandId, label: b.name, group: categories.find(c=>c.categoryId===b.categoryId)?.name }))
   const retailerOptions: MultiOption[] = retailers.map(r=>({ value: r.retailerId, label: r.name }))
+
+  const regionOptions = [{value:'NA',label:'North America'},{value:'EU',label:'Europe'},{value:'APAC',label:'APAC'},{value:'LATAM',label:'LATAM'}]
+  const themeOptions = themes.map(t=>({ value: t.themeId, label: t.name }))
 
   const cutoffKeys = useMemo(() => {
     const sorted = [...dates].sort((a,b)=>a.date.getTime()-b.date.getTime())
@@ -63,15 +72,31 @@ export default function OverviewPage() {
       : new Set(products.filter((p) => selectedBrandIds.includes(p.brandId)).map((p) => p.productId))
 
     const retailerSet = selectedRetailerIds.length === 0 ? null : new Set(selectedRetailerIds)
+    const regionSet = selectedRegions.length === 0 ? null : new Set(selectedRegions)
+    const themeSet = selectedThemes.length === 0 ? null : new Set(selectedThemes)
 
     const filteredReviews = reviews.filter((r) =>
       cutoff.includes(r.dateKey) &&
       productIdsInBrand.has(r.productId) &&
-      (!retailerSet || retailerSet.has(r.retailerId))
+      (!retailerSet || retailerSet.has(r.retailerId)) &&
+      (!regionSet || regionSet.has(r.region)) &&
+      (r.rating >= ratingRange[0] && r.rating <= ratingRange[1]) &&
+      (!themeSet || r.themeIds.some(t=>themeSet.has(t)))
     )
 
     return { filteredReviews, cutoff }
-  }, [reviews, months, dates, brands, products, selectedCategoryIds, selectedBrandIds, selectedRetailerIds, cutoffKeys])
+  }, [reviews, brands, products, cutoffKeys, selectedCategoryIds, selectedBrandIds, selectedRetailerIds, selectedRegions, selectedThemes, ratingRange])
+
+  const activeChips = useMemo(()=>{
+    const chips: Array<{key:string; label:string}> = []
+    if (selectedCategoryIds.length) chips.push({ key:'cat', label:`${selectedCategoryIds.length} categories` })
+    if (selectedBrandIds.length) chips.push({ key:'brand', label:`${selectedBrandIds.length} brands` })
+    if (selectedRetailerIds.length) chips.push({ key:'ret', label:`${selectedRetailerIds.length} retailers` })
+    if (selectedRegions.length) chips.push({ key:'reg', label:`${selectedRegions.join(',')}` })
+    if (selectedThemes.length) chips.push({ key:'th', label:`${selectedThemes.length} themes` })
+    if (ratingRange[0]!==1 || ratingRange[1]!==5) chips.push({ key:'rat', label:`${ratingRange[0]}★–${ratingRange[1]}★` })
+    return chips
+  }, [selectedCategoryIds, selectedBrandIds, selectedRetailerIds, selectedRegions, selectedThemes, ratingRange])
 
   const kpis = useMemo(() => {
     const count = filtered.filteredReviews.length
@@ -217,29 +242,61 @@ export default function OverviewPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Timeframe</label>
-            <TimeframeControl dates={dates} value={timeframe} onChange={(v)=> startTransition(()=> setTimeframe(v))} />
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">Timeframe</label>
+              <TimeframeControl dates={dates} value={timeframe} onChange={(v)=> startTransition(()=> setTimeframe(v))} />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">Categories</label>
+              <MultiSelectCombobox values={selectedCategoryIds} onChange={(vals)=>startTransition(()=>setSelectedCategoryIds(vals))} options={categoryOptions} placeholder="All Categories" />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">Brands</label>
+              <MultiSelectCombobox values={selectedBrandIds} onChange={(vals)=>startTransition(()=>setSelectedBrandIds(vals))} options={brandOptions} placeholder="All Brands" />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">Retailers</label>
+              <MultiSelectCombobox values={selectedRetailerIds} onChange={(vals)=>startTransition(()=>setSelectedRetailerIds(vals))} options={retailerOptions} placeholder="All Retailers" />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Categories</label>
-            <MultiSelectCombobox values={selectedCategoryIds} onChange={(vals)=>startTransition(()=>setSelectedCategoryIds(vals))} options={categoryOptions} placeholder="All Categories" />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Brands</label>
-            <MultiSelectCombobox values={selectedBrandIds} onChange={(vals)=>startTransition(()=>setSelectedBrandIds(vals))} options={brandOptions} placeholder="All Brands" />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Retailers</label>
-            <MultiSelectCombobox values={selectedRetailerIds} onChange={(vals)=>startTransition(()=>setSelectedRetailerIds(vals))} options={retailerOptions} placeholder="All Retailers" />
-          </div>
-          <div className="md:ml-auto">
-            <label className="block text-xs text-slate-500 mb-1">Months</label>
-            <TimeGranularity value={granularity} onChange={(g)=> startTransition(()=> setGranularity(g))} />
-          </div>
+          <button onClick={()=>setDrawerOpen(true)} className="badge border-slate-200 bg-white hover:bg-slate-50 text-slate-700">More filters</button>
+        </div>
+        <div className="mt-3">
+          <ActiveFilterChips chips={activeChips} onRemove={(key)=>{
+            if (key==='cat') setSelectedCategoryIds([])
+            if (key==='brand') setSelectedBrandIds([])
+            if (key==='ret') setSelectedRetailerIds([])
+            if (key==='reg') setSelectedRegions([])
+            if (key==='th') setSelectedThemes([])
+            if (key==='rat') setRatingRange([1,5])
+          }} />
         </div>
       </div>
+
+      <FiltersDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        sections={[
+          { title: 'Geography', content: (
+            <MultiSelectCombobox values={selectedRegions} onChange={setSelectedRegions} options={regionOptions} placeholder="All Regions" />
+          )},
+          { title: 'Themes', content: (
+            <MultiSelectCombobox values={selectedThemes} onChange={setSelectedThemes} options={themeOptions} placeholder="All Themes" />
+          )},
+          { title: 'Star Rating', content: (
+            <div className="flex items-center gap-3">
+              <label className="text-sm">From</label>
+              <input type="number" min={1} max={5} value={ratingRange[0]} onChange={(e)=>setRatingRange([Number(e.target.value), ratingRange[1]])} className="w-20 border rounded px-2 py-1" />
+              <label className="text-sm">To</label>
+              <input type="number" min={1} max={5} value={ratingRange[1]} onChange={(e)=>setRatingRange([ratingRange[0], Number(e.target.value)])} className="w-20 border rounded px-2 py-1" />
+            </div>
+          )}
+        ]}
+        onApply={()=> setDrawerOpen(false)}
+        onReset={()=>{ setSelectedRegions([]); setSelectedThemes([]); setRatingRange([1,5]) }}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {isPending ? (

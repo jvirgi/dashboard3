@@ -14,6 +14,7 @@ export type ProductDim = {
   brandId: string
   name: string
   priceTier: 'Value' | 'Mass' | 'Premium'
+  attributes: string[]
 }
 
 export type RetailerDim = {
@@ -48,6 +49,9 @@ export type ReviewFact = {
   // new fields for day-level analysis
   dateKeyDay: string // YYYY-MM-DD
   reviewDate: Date
+  // geography
+  region: 'NA' | 'EU' | 'APAC' | 'LATAM'
+  country: string
 }
 
 export type DataModel = {
