@@ -11,6 +11,16 @@ export type TimeframeValue =
 
 export function TimeframeControl({ dates, value, onChange }: { dates: DateDim[]; value: TimeframeValue; onChange: (v: TimeframeValue)=>void }){
   const [open, setOpen] = React.useState(false)
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  React.useEffect(()=>{
+    const onDown = (e: MouseEvent) => {
+      if (!containerRef.current) return
+      if (!containerRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown, true)
+    return ()=> document.removeEventListener('mousedown', onDown, true)
+  }, [])
+
   const sorted = React.useMemo(()=> [...dates].sort((a,b)=>a.date.getTime()-b.date.getTime()), [dates])
 
   const labelFor = (key: string) => {
@@ -27,7 +37,7 @@ export function TimeframeControl({ dates, value, onChange }: { dates: DateDim[];
   const isPreset = value.mode==='preset'
 
   return (
-    <div className="flex items-center gap-2">
+    <div ref={containerRef} className="relative flex items-center gap-2">
       <div className="inline-flex rounded-full bg-slate-100 p-1 border border-slate-200">
         {([3,6,12,24] as const).map(m => (
           <button key={m} onClick={()=>onChange({ mode:'preset', months: m })} className={`px-3 py-1.5 text-sm rounded-full transition ${isPreset && value.months===m ? 'bg-white shadow-soft text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}>{m}M</button>
@@ -35,7 +45,7 @@ export function TimeframeControl({ dates, value, onChange }: { dates: DateDim[];
         <button onClick={()=>{ onChange({ mode:'custom', startKey: startKey!, endKey: endKey! }); setOpen(o=>!o) }} className={`px-3 py-1.5 text-sm rounded-full transition ${value.mode==='custom' ? 'bg-white shadow-soft text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}>Custom</button>
       </div>
       {value.mode==='custom' && open && (
-        <div className="z-[1600] absolute mt-14 rounded-xl border bg-white/95 backdrop-blur shadow-soft p-3">
+        <div className="z-[1600] absolute left-0 mt-2 rounded-xl border bg-white/95 backdrop-blur shadow-soft p-3">
           <div className="text-xs text-slate-500 mb-1">Start</div>
           <MonthSelect options={sorted} value={startKey!} onValueChange={(v)=>setStart(v)} />
           <div className="text-xs text-slate-500 mt-3 mb-1">End</div>
