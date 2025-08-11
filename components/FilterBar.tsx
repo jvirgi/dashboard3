@@ -5,10 +5,11 @@ import * as Select from '@radix-ui/react-select'
 import { ChevronDownIcon, CheckIcon } from '@radix-ui/react-icons'
 import { MonthSegment } from './MonthSegment'
 import { CommandCombobox, CommandOption } from './CommandCombobox'
+import { useState } from 'react'
 
-function SelectRoot({ value, onValueChange, children }: { value: string; onValueChange: (v: string)=>void; children: React.ReactNode }){
+function SelectRoot({ value, onValueChange, children, open, onOpenChange }: { value: string; onValueChange: (v: string)=>void; children: React.ReactNode; open?: boolean; onOpenChange?: (o:boolean)=>void }){
   return (
-    <Select.Root value={value} onValueChange={onValueChange}>
+    <Select.Root value={value} onValueChange={onValueChange} open={open} onOpenChange={onOpenChange}>
       {children}
     </Select.Root>
   )
@@ -29,7 +30,7 @@ function SelectTrigger({ placeholder }: { placeholder: string }){
 function SelectContent({ children }: { children: React.ReactNode }){
   return (
     <Select.Portal>
-      <Select.Content position="popper" sideOffset={8} className="z-[4000] overflow-hidden rounded-xl border bg-white/95 backdrop-blur shadow-soft max-h-[60vh] overflow-auto">
+      <Select.Content position="popper" sideOffset={8} className="z-[9999] overflow-hidden rounded-xl border bg-white/95 backdrop-blur shadow-soft max-h-[60vh] overflow-auto">
         <Select.Viewport className="p-1">
           {children}
         </Select.Viewport>
@@ -78,11 +79,14 @@ export function FilterBar({
   const visibleBrands = selectedCategoryId === 'all' ? brands : brands.filter(b=>b.categoryId===selectedCategoryId)
   const brandOptions: CommandOption[] = visibleBrands.map(b=>({ value: b.brandId, label: b.name, group: categories.find(c=>c.categoryId===b.categoryId)?.name }))
 
+  const [openCat, setOpenCat] = useState(false)
+  const [openRet, setOpenRet] = useState(false)
+
   return (
     <div className="flex flex-col md:flex-row md:items-center gap-4">
       <div>
         <label className="block text-xs text-slate-500 mb-1">Category</label>
-        <SelectRoot value={String(selectedCategoryId)} onValueChange={(v)=>setSelectedCategoryId(v as any)}>
+        <SelectRoot value={String(selectedCategoryId)} onValueChange={(v)=>setSelectedCategoryId(v as any)} open={openCat} onOpenChange={setOpenCat}>
           <SelectTrigger placeholder="All Categories" />
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
@@ -103,7 +107,7 @@ export function FilterBar({
       </div>
       <div>
         <label className="block text-xs text-slate-500 mb-1">Retailer</label>
-        <SelectRoot value={String(selectedRetailerId)} onValueChange={(v)=>setSelectedRetailerId(v as any)}>
+        <SelectRoot value={String(selectedRetailerId)} onValueChange={(v)=>setSelectedRetailerId(v as any)} open={openRet} onOpenChange={setOpenRet}>
           <SelectTrigger placeholder="All Retailers" />
           <SelectContent>
             <SelectItem value="all">All Retailers</SelectItem>
