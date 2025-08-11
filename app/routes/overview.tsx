@@ -45,6 +45,20 @@ export default function OverviewPage() {
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([])
 
   const { categories, brands, products, retailers, dates, reviews, themes } = data
+
+  // fast lookup maps to avoid repeated linear scans
+  const productById = useMemo(()=> new Map(products.map(p=>[p.productId, p])), [products])
+  const brandById = useMemo(()=> new Map(brands.map(b=>[b.brandId, b])), [brands])
+  const reviewsByDateKey = useMemo(()=>{
+    const m = new Map<string, typeof reviews>()
+    for (const d of dates) m.set(d.dateKey, [])
+    for (const r of reviews){
+      const arr = m.get(r.dateKey)
+      if (arr) arr.push(r)
+    }
+    return m
+  }, [reviews, dates])
+
   const allAttributes = useMemo(()=> Array.from(new Set(products.flatMap(p=>p.attributes))).map(a=>({ value:a, label:a })), [products])
 
   const categoryOptions: MultiOption[] = categories.map(c=>({ value: c.categoryId, label: c.name }))
@@ -67,35 +81,47 @@ export default function OverviewPage() {
     }
   }, [dates, timeframe])
 
-  const filtered = useMemo(() => {
-    const cutoff = cutoffKeys
+  // Pre-slice to only the months in range; drastically reduces filtering cost
+  const monthlyPool = useMemo(()=>{
+    const out: typeof reviews = []
+    for (const key of cutoffKeys){
+      const arr = reviewsByDateKey.get(key)
+      if (arr && arr.length) out.push(...arr)
+    }
+    return out
+  }, [reviewsByDateKey, cutoffKeys])
 
+  const filtered = useMemo(() => {
     const brandIdsInCategory = selectedCategoryIds.length === 0
-      ? new Set(brands.map((b) => b.brandId))
+      ? null
       : new Set(brands.filter((b) => selectedCategoryIds.includes(b.categoryId)).map((b) => b.brandId))
 
-    const productIdsInBrand = selectedBrandIds.length === 0
-      ? new Set(products.filter((p) => brandIdsInCategory.has(p.brandId)).map((p) => p.productId))
-      : new Set(products.filter((p) => selectedBrandIds.includes(p.brandId)).map((p) => p.productId))
-
+    const brandFilterSet = selectedBrandIds.length === 0 ? null : new Set(selectedBrandIds)
     const retailerSet = selectedRetailerIds.length === 0 ? null : new Set(selectedRetailerIds)
     const regionSet = selectedRegions.length === 0 ? null : new Set(selectedRegions)
     const themeSet = selectedThemes.length === 0 ? null : new Set(selectedThemes)
     const attrSet = selectedAttributes.length === 0 ? null : new Set(selectedAttributes)
+    const pq = productQuery.trim().toLowerCase()
 
-    const filteredReviews = reviews.filter((r) =>
-      cutoff.includes(r.dateKey) &&
-      productIdsInBrand.has(r.productId) &&
-      (!retailerSet || retailerSet.has(r.retailerId)) &&
-      (!regionSet || regionSet.has(r.region)) &&
-      (r.rating >= ratingRange[0] && r.rating <= ratingRange[1]) &&
-      (!themeSet || r.themeIds.some(t=>themeSet.has(t))) &&
-      (productQuery ? products.find(p=>p.productId===r.productId)?.name.toLowerCase().includes(productQuery.toLowerCase()) : true) &&
-      (!attrSet || products.find(p=>p.productId===r.productId)?.attributes.some(a=>attrSet.has(a)))
-    )
+    const filteredReviews = monthlyPool.filter((r) => {
+      // product and brand checks
+      const p = productById.get(r.productId)
+      if (!p) return false
+      if (brandIdsInCategory) {
+        const pb = brandById.get(p.brandId); if (!pb || !brandIdsInCategory.has(pb.brandId)) return false
+      }
+      if (brandFilterSet && !brandFilterSet.has(p.brandId)) return false
+      if (retailerSet && !retailerSet.has(r.retailerId)) return false
+      if (regionSet && !regionSet.has(r.region)) return false
+      if (r.rating < ratingRange[0] || r.rating > ratingRange[1]) return false
+      if (themeSet && !r.themeIds.some(t=>themeSet.has(t))) return false
+      if (pq && !p.name.toLowerCase().includes(pq)) return false
+      if (attrSet && !p.attributes.some(a=>attrSet.has(a))) return false
+      return true
+    })
 
-    return { filteredReviews, cutoff }
-  }, [reviews, brands, products, cutoffKeys, selectedCategoryIds, selectedBrandIds, selectedRetailerIds, selectedRegions, selectedThemes, ratingRange, productQuery, selectedAttributes])
+    return { filteredReviews, cutoff: cutoffKeys }
+  }, [monthlyPool, brands, productById, brandById, cutoffKeys, selectedCategoryIds, selectedBrandIds, selectedRetailerIds, selectedRegions, selectedThemes, ratingRange, productQuery, selectedAttributes])
 
   const activeChips = useMemo(()=>{
     const chips: Array<{key:string; label:string}> = []
@@ -150,9 +176,6 @@ export default function OverviewPage() {
     for (const d of consideredDates) {
       const k = keyFor(d)
       map.set(k.key, { key: k.key, label: k.label, date: d, count: 0, avgRating: 0, r1:0,r2:0,r3:0,r4:0,r5:0 })
-      if (granularity==='day'){
-        // seed all days in month range roughly: skip for simplicity, will be filled by reviews
-      }
     }
 
     for (const r of filtered.filteredReviews) {
@@ -210,24 +233,36 @@ export default function OverviewPage() {
   }, [filtered, themes])
 
   const smallMultiples = useMemo(()=>{
+    // compute from monthly pool to avoid scanning full dataset
+    const byCat = new Map<string, Map<string, { date: Date; count: number; sum: number }>>()
+    for (const d of dates) {
+      if (!cutoffKeys.includes(d.dateKey)) continue
+      for (const c of categories){
+        if (!byCat.has(c.categoryId)) byCat.set(c.categoryId, new Map())
+        byCat.get(c.categoryId)!.set(d.dateKey, { date: d.date, count: 0, sum: 0 })
+      }
+    }
+    for (const r of filtered.filteredReviews){
+      const p = productById.get(r.productId); if (!p) continue
+      const b = brandById.get(p.brandId); if (!b) continue
+      const slot = byCat.get(b.categoryId)?.get(r.dateKey); if (!slot) continue
+      slot.count++; slot.sum += r.rating
+    }
     return categories.map(cat=>{
-      const catBrands = brands.filter(b=>b.categoryId===cat.categoryId)
-      const brandIds = new Set(catBrands.map(b=>b.brandId))
-      const productIds = new Set(products.filter(p=>brandIds.has(p.brandId)).map(p=>p.productId))
-      const revs = reviews.filter(r=>filtered.cutoff.includes(r.dateKey) && productIds.has(r.productId))
-      const byMonth = new Map<string, { date: Date; count: number; avg: number }>()
-      for (const d of dates) {
-        if (!filtered.cutoff.includes(d.dateKey)) continue
-        byMonth.set(d.dateKey, { date: d.date, count: 0, avg: 0 })
-      }
-      for (const r of revs){
-        const slot = byMonth.get(r.dateKey); if (!slot) continue
-        slot.count++; slot.avg += r.rating
-      }
-      const rows = Array.from(byMonth.values()).map(v=>({ name: format(v.date,'MMM'), value: v.count? Number((v.avg/v.count).toFixed(2)) : 0 }))
+      const rows = Array.from(byCat.get(cat.categoryId)?.values() || [])
+        .map(v=>({ name: format(v.date,'MMM'), value: v.count? Number((v.sum/v.count).toFixed(2)) : 0 }))
       return { name: cat.name, data: rows }
     })
-  }, [categories, brands, products, reviews, filtered.cutoff, dates])
+  }, [categories, productById, brandById, filtered.filteredReviews, dates, cutoffKeys])
+
+  const trendCardId = useId()
+  const ratingCardId = useId()
+  const themeCardId = useId()
+
+  const kpiSparkline = useMemo(()=>{
+    const arr = slicedTrend.map(d=>({ name: d.name, value: d.rating }))
+    return arr.length ? arr : Array.from({length:8}).map((_,i)=>({ name: String(i), value: 0 }))
+  }, [slicedTrend])
 
   const handleThemeBarClick = (name: string) => {
     const brand = brands.find(b=>b.name===name)
@@ -244,12 +279,6 @@ export default function OverviewPage() {
   const onSetBrand = (v: string[] | 'all') => startTransition(()=>setSelectedBrandIds(v === 'all' ? [] : v))
   const onSetRetailer = (v: string[] | 'all') => startTransition(()=>setSelectedRetailerIds(v === 'all' ? [] : v))
   const onSetMonths = (n: number) => startTransition(()=>setMonths(n))
-
-  const kpiSparkline = useMemo(()=> trendData.map(d=>({ name: d.name, value: d.rating })), [trendData])
-
-  const trendCardId = useId().toString()
-  const ratingCardId = useId().toString()
-  const themeCardId = useId().toString()
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from 'react'
+import { sampleReviewText } from '@/lib/textGen'
 import { sampleData } from '@/lib/sampleData'
 import { BarChartViz } from '@/components/charts/BarChartViz'
 import { AnimateCard } from '@/components/AnimateCard'
@@ -31,7 +32,12 @@ export default function ThemesPage(){
     return Array.from(map.values()).map(v=>({ name: v.name, volume: v.count, sentiment: v.count? Number((v.sent/v.count).toFixed(2)) : 0 }))
   }, [filtered, themes])
 
-  const recentQuotes = useMemo(()=>filtered.slice(-20).reverse(), [filtered])
+  const recentQuotes = useMemo(()=>{
+    return filtered.slice(-20).reverse().map(q=>({
+      ...q,
+      text: sampleReviewText(q.reviewId, q.rating, q.themeIds.map(id=>themes.find(t=>t.themeId===id)?.name || '').filter(Boolean))
+    }))
+  }, [filtered, themes])
 
   return (
     <div className="space-y-6">

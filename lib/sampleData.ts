@@ -227,7 +227,6 @@ while (reviews.length < TARGET_REVIEWS) {
   // Deduplicate chosen themes
   const themeIds = Array.from(new Set(themesChosen.map(t=>t.themeId)))
 
-  const text = buildReviewText(rand, themes.filter(t=>themeIds.includes(t.themeId)), rating)
 
   // construct random day within the month
   const day = 1 + Math.floor(rand()*28)
@@ -245,7 +244,7 @@ while (reviews.length < TARGET_REVIEWS) {
     rating,
     sentimentScore: Number(sentiment.toFixed(3)),
     themeIds,
-    text,
+    text: '',
     helpfulVotes: Math.floor(rand()*20),
     dateKeyDay,
     reviewDate: d,
