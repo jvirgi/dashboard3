@@ -26,22 +26,8 @@ import { ReviewsModal } from '@/components/ReviewsModal'
 export default function OverviewPage() {
   const data = useSampleData()
   const search = useSearchParams()
-  // show skeleton before data ready
-  if (!data) {
-    return (
-      <div className="space-y-6">
-        <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
-          <div className="h-8 skeleton" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {Array.from({length:4}).map((_,i)=>(<div key={i} className="skeleton h-24 rounded-xl"/>))}
-        </div>
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {Array.from({length:3}).map((_,i)=>(<div key={i} className="skeleton h-80 rounded-xl"/>))}
-        </div>
-      </div>
-    )
-  }
+  const loading = !data
+  const safe = data || { categories: [], brands: [], products: [], retailers: [], dates: [], reviews: [], themes: [] }
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>([])
   const [selectedRetailerIds, setSelectedRetailerIds] = useState<string[]>([])
@@ -69,11 +55,11 @@ export default function OverviewPage() {
     return ()=> clearTimeout(id)
   }, [productQuery])
 
-  const { categories, brands, products, retailers, dates, reviews, themes } = data
+  const { categories, brands, products, retailers, dates, reviews, themes } = safe as any
 
   // fast lookup maps to avoid repeated linear scans
-  const productById = useMemo(()=> new Map(products.map(p=>[p.productId, p])), [products])
-  const brandById = useMemo(()=> new Map(brands.map(b=>[b.brandId, b])), [brands])
+  const productById = useMemo(()=> new Map(products.map((p:any)=>[p.productId, p])), [products])
+  const brandById = useMemo(()=> new Map(brands.map((b:any)=>[b.brandId, b])), [brands])
   const reviewsByDateKey = useMemo(()=>{
     const m = new Map<string, typeof reviews>()
     for (const d of dates) m.set(d.dateKey, [])
@@ -84,31 +70,31 @@ export default function OverviewPage() {
     return m
   }, [reviews, dates])
 
-  const allAttributes = useMemo(()=> Array.from(new Set(products.flatMap(p=>p.attributes))).map(a=>({ value:a, label:a })), [products])
+  const allAttributes = useMemo(()=> Array.from(new Set(products.flatMap((p:any)=>p.attributes))).map(a=>({ value:String(a), label:String(a) })), [products])
 
-  const categoryOptions: MultiOption[] = categories.map(c=>({ value: c.categoryId, label: c.name }))
-  const brandOptions: MultiOption[] = brands.map(b=>({ value: b.brandId, label: b.name, group: categories.find(c=>c.categoryId===b.categoryId)?.name }))
-  const retailerOptions: MultiOption[] = retailers.map(r=>({ value: r.retailerId, label: r.name }))
+  const categoryOptions: MultiOption[] = categories.map((c:any)=>({ value: c.categoryId, label: c.name }))
+  const brandOptions: MultiOption[] = brands.map((b:any)=>({ value: b.brandId, label: b.name, group: categories.find((c:any)=>c.categoryId===b.categoryId)?.name }))
+  const retailerOptions: MultiOption[] = retailers.map((r:any)=>({ value: r.retailerId, label: r.name }))
 
   const regionOptions = [{value:'NA',label:'North America'},{value:'EU',label:'Europe'},{value:'APAC',label:'APAC'},{value:'LATAM',label:'LATAM'}]
-  const themeOptions = themes.map(t=>({ value: t.themeId, label: t.name }))
+  const themeOptions = themes.map((t:any)=>({ value: t.themeId, label: t.name }))
 
   const cutoffKeys = useMemo(() => {
-    const sorted = [...dates].sort((a,b)=>a.date.getTime()-b.date.getTime())
+    const sorted = [...dates].sort((a:any,b:any)=>a.date.getTime()-b.date.getTime())
     if (timeframe.mode==='preset') {
-      return sorted.slice(-timeframe.months).map(d=>d.dateKey)
+      return sorted.slice(-timeframe.months).map((d:any)=>d.dateKey)
     } else {
-      const startIdx = sorted.findIndex(d=>d.dateKey===timeframe.startKey)
-      const endIdx = sorted.findIndex(d=>d.dateKey===timeframe.endKey)
-      if (startIdx === -1 || endIdx === -1) return sorted.slice(-12).map(d=>d.dateKey)
+      const startIdx = sorted.findIndex((d:any)=>d.dateKey===timeframe.startKey)
+      const endIdx = sorted.findIndex((d:any)=>d.dateKey===timeframe.endKey)
+      if (startIdx === -1 || endIdx === -1) return sorted.slice(-12).map((d:any)=>d.dateKey)
       const [s,e] = startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx]
-      return sorted.slice(s, e+1).map(d=>d.dateKey)
+      return sorted.slice(s, e+1).map((d:any)=>d.dateKey)
     }
   }, [dates, timeframe])
 
   // Pre-slice to only the months in range; drastically reduces filtering cost
   const monthlyPool = useMemo(()=>{
-    const out: typeof reviews = []
+    const out: typeof reviews = [] as any
     for (const key of cutoffKeys){
       const arr = reviewsByDateKey.get(key)
       if (arr && arr.length) out.push(...arr)
@@ -119,7 +105,7 @@ export default function OverviewPage() {
   const filtered = useMemo(() => {
     const brandIdsInCategory = selectedCategoryIds.length === 0
       ? null
-      : new Set(brands.filter((b) => selectedCategoryIds.includes(b.categoryId)).map((b) => b.brandId))
+      : new Set(brands.filter((b:any) => selectedCategoryIds.includes(b.categoryId)).map((b:any) => b.brandId))
 
     const brandFilterSet = selectedBrandIds.length === 0 ? null : new Set(selectedBrandIds)
     const retailerSet = selectedRetailerIds.length === 0 ? null : new Set(selectedRetailerIds)
@@ -128,20 +114,20 @@ export default function OverviewPage() {
     const attrSet = selectedAttributes.length === 0 ? null : new Set(selectedAttributes)
     const pq = deferredPQ.trim().toLowerCase()
 
-    const filteredReviews = monthlyPool.filter((r) => {
+    const filteredReviews = monthlyPool.filter((r:any) => {
       // product and brand checks
-      const p = productById.get(r.productId)
+      const p = productById.get(r.productId) as any
       if (!p) return false
       if (brandIdsInCategory) {
-        const pb = brandById.get(p.brandId); if (!pb || !brandIdsInCategory.has(pb.brandId)) return false
+        const pb = brandById.get(p.brandId) as any; if (!pb || !brandIdsInCategory.has(pb.brandId)) return false
       }
       if (brandFilterSet && !brandFilterSet.has(p.brandId)) return false
       if (retailerSet && !retailerSet.has(r.retailerId)) return false
       if (regionSet && !regionSet.has(r.region)) return false
       if (r.rating < ratingRange[0] || r.rating > ratingRange[1]) return false
-      if (themeSet && !r.themeIds.some(t=>themeSet.has(t))) return false
+      if (themeSet && !r.themeIds.some((t:any)=>themeSet.has(t))) return false
       if (pq && !p.name.toLowerCase().includes(pq)) return false
-      if (attrSet && !p.attributes.some(a=>attrSet.has(a))) return false
+      if (attrSet && !p.attributes.some((a:any)=>attrSet.has(a))) return false
       return true
     })
 
@@ -163,17 +149,17 @@ export default function OverviewPage() {
 
   const kpis = useMemo(() => {
     const count = filtered.filteredReviews.length
-    const avgRating = count === 0 ? 0 : filtered.filteredReviews.reduce((s, r) => s + r.rating, 0) / count
-    const avgSent = count === 0 ? 0 : filtered.filteredReviews.reduce((s, r) => s + r.sentimentScore, 0) / count
+    const avgRating = count === 0 ? 0 : filtered.filteredReviews.reduce((s: number, r: any) => s + r.rating, 0) / count
+    const avgSent = count === 0 ? 0 : filtered.filteredReviews.reduce((s: number, r: any) => s + r.sentimentScore, 0) / count
 
-    const last3 = filtered.filteredReviews.filter((r) => filtered.cutoff.slice(-3).includes(r.dateKey))
-    const prev3 = filtered.filteredReviews.filter((r) => filtered.cutoff.slice(-6, -3).includes(r.dateKey))
-    const last3Avg = last3.length ? last3.reduce((s, r) => s + r.rating, 0) / last3.length : 0
-    const prev3Avg = prev3.length ? prev3.reduce((s, r) => s + r.rating, 0) / prev3.length : 0
+    const last3 = filtered.filteredReviews.filter((r: any) => filtered.cutoff.slice(-3).includes(r.dateKey))
+    const prev3 = filtered.filteredReviews.filter((r: any) => filtered.cutoff.slice(-6, -3).includes(r.dateKey))
+    const last3Avg = last3.length ? last3.reduce((s: number, r: any) => s + r.rating, 0) / last3.length : 0
+    const prev3Avg = prev3.length ? prev3.reduce((s: number, r: any) => s + r.rating, 0) / prev3.length : 0
     const delta = last3Avg - prev3Avg
 
-    const last3Sent = last3.length ? last3.reduce((s,r)=>s+r.sentimentScore,0)/last3.length : 0
-    const prev3Sent = prev3.length ? prev3.reduce((s,r)=>s+r.sentimentScore,0)/prev3.length : 0
+    const last3Sent = last3.length ? last3.reduce((s:number,r:any)=>s+r.sentimentScore,0)/last3.length : 0
+    const prev3Sent = prev3.length ? prev3.reduce((s:number,r:any)=>s+r.sentimentScore,0)/prev3.length : 0
     const deltaSent = last3Sent - prev3Sent
 
     const last3Count = last3.length
@@ -195,7 +181,7 @@ export default function OverviewPage() {
       return { key: `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`, label: date.toLocaleDateString(undefined,{ month:'short', year:'2-digit'}) }
     }
 
-    const consideredDates = dates.filter(d=>filtered.cutoff.includes(d.dateKey)).map(d=>d.date)
+    const consideredDates = dates.filter((d:any)=>filtered.cutoff.includes(d.dateKey)).map((d:any)=>d.date)
 
     // seed buckets based on selected months range and granularity
     for (const d of consideredDates) {
@@ -251,7 +237,7 @@ export default function OverviewPage() {
       }
     }
     const top = Array.from(themeMap.entries())
-      .map(([themeId, count]) => ({ name: themes.find((t) => t.themeId === themeId)?.name || themeId, count }))
+      .map(([themeId, count]) => ({ name: themes.find((t:any) => t.themeId === themeId)?.name || themeId, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8)
     return top
@@ -263,17 +249,17 @@ export default function OverviewPage() {
     for (const d of dates) {
       if (!cutoffKeys.includes(d.dateKey)) continue
       for (const c of categories){
-        if (!byCat.has(c.categoryId)) byCat.set(c.categoryId, new Map())
-        byCat.get(c.categoryId)!.set(d.dateKey, { date: d.date, count: 0, sum: 0 })
+        if (!byCat.has((c as any).categoryId)) byCat.set((c as any).categoryId, new Map())
+        byCat.get((c as any).categoryId)!.set(d.dateKey, { date: d.date, count: 0, sum: 0 })
       }
     }
     for (const r of filtered.filteredReviews){
-      const p = productById.get(r.productId); if (!p) continue
-      const b = brandById.get(p.brandId); if (!b) continue
+      const p = productById.get(r.productId) as any; if (!p) continue
+      const b = brandById.get(p.brandId) as any; if (!b) continue
       const slot = byCat.get(b.categoryId)?.get(r.dateKey); if (!slot) continue
       slot.count++; slot.sum += r.rating
     }
-    return categories.map(cat=>{
+    return categories.map((cat:any)=>{
       const rows = Array.from(byCat.get(cat.categoryId)?.values() || [])
         .map(v=>({ name: format(v.date,'MMM'), value: v.count? Number((v.sum/v.count).toFixed(2)) : 0 }))
       return { name: cat.name, data: rows }
@@ -290,7 +276,7 @@ export default function OverviewPage() {
   }, [slicedTrend])
 
   const handleThemeBarClick = (name: string) => {
-    const brand = brands.find(b=>b.name===name)
+    const brand = (brands as any).find((b:any)=>b.name===name)
     if (brand) setSelectedBrandIds([brand.brandId])
   }
 
@@ -305,8 +291,17 @@ export default function OverviewPage() {
   const onSetRetailer = (v: string[] | 'all') => startTransition(()=>setSelectedRetailerIds(v === 'all' ? [] : v))
   const onSetMonths = (n: number) => startTransition(()=>setMonths(n))
 
+  const pending = isPending || loading
+
   return (
     <div className="space-y-6">
+      {loading && (
+        <>
+          <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
+            <div className="h-8 skeleton" />
+          </div>
+        </>
+      )}
       <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
         <div className="flex flex-wrap items-end gap-4">
           <div>
@@ -373,7 +368,7 @@ export default function OverviewPage() {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {isPending ? (
+        {pending ? (
           <>
             <Skeleton className="h-24" />
             <Skeleton className="h-24" />
@@ -420,7 +415,7 @@ export default function OverviewPage() {
               <ExportButton targetId={trendCardId} filename="monthly-trend.png" />
             </div>
           </div>
-          {isPending ? <Skeleton className="h-72" /> : <LineChartViz data={slicedTrend} yLeftKey="reviews" yRightKey="rating" showBrush={false} />}
+          {pending ? <Skeleton className="h-72" /> : <LineChartViz data={slicedTrend} yLeftKey="reviews" yRightKey="rating" showBrush={false} />}
           <div className="mt-2">
             <RangeSlider min={0} max={100} value={range} onChange={setRange} />
           </div>
@@ -430,7 +425,7 @@ export default function OverviewPage() {
             <h3 className="font-semibold">Rating Distribution</h3>
             <ExportButton targetId={ratingCardId} filename="rating-distribution.png" />
           </div>
-          {isPending ? <Skeleton className="h-72" /> : (
+          {pending ? <Skeleton className="h-72" /> : (
             <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
               <BarChartViz data={ratingDist} xKey="name" barKey="value" color="#f59e0b" />
             </div>
@@ -443,10 +438,10 @@ export default function OverviewPage() {
           <h3 className="font-semibold">Top Themes</h3>
           <ExportButton targetId={themeCardId} filename="top-themes.png" />
         </div>
-        {isPending ? <Skeleton className="h-72" /> : (
+        {pending ? <Skeleton className="h-72" /> : (
           <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
             <BarChartViz data={themeTop} xKey="name" barKey="count" color="#7c3aed" onBarClick={(name)=>{
-              const b = brands.find(br=>br.name===name); if (b) setSelectedBrandIds([b.brandId])
+              const b = (brands as any).find((br:any)=>br.name===name); if (b) setSelectedBrandIds([b.brandId])
             }} />
           </div>
         )}
@@ -456,7 +451,7 @@ export default function OverviewPage() {
         <div className="flex items-center justify-between">
           <h3 className="font-semibold mb-2">Rating Mix Shift</h3>
         </div>
-        {isPending ? <Skeleton className="h-72" /> : (
+        {pending ? <Skeleton className="h-72" /> : (
           <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
             <StackedRatingArea data={slicedTrend} showBrush={false} />
           </div>
@@ -468,13 +463,13 @@ export default function OverviewPage() {
 
       <AnimateCard className="p-4">
         <h3 className="font-semibold mb-2">Small Multiples: Avg Rating by Category</h3>
-        {isPending ? (
+        {pending ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Array.from({length:8}).map((_,i)=>(<Skeleton key={i} className="h-16"/>))}
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {smallMultiples.map(sm=> (
+            {smallMultiples.map((sm:any)=> (
               <div key={sm.name} className="rounded-lg border p-2">
                 <div className="text-xs text-slate-600 mb-1">{sm.name}</div>
                 <Sparkline data={sm.data} dataKey="value" color="#6366f1" />
