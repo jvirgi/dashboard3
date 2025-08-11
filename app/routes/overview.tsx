@@ -37,7 +37,7 @@ export default function OverviewPage() {
   const [selectedRegions, setSelectedRegions] = useState<string[]>([])
   const [selectedThemes, setSelectedThemes] = useState<string[]>([])
   const [ratingRange, setRatingRange] = useState<[number, number]>([1,5])
-  const [productQuery, setProductQuery] = useState('')
+  const [productQuery, setProductQuery] = useState(decodeURIComponent(search.get('q') || ''))
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([])
 
   const { categories, brands, products, retailers, dates, reviews, themes } = data

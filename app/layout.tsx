@@ -4,6 +4,7 @@ import './globals.css'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { DropdownManagerProvider } from '@/components/DropdownManager'
+import { GlobalSearch } from '@/components/GlobalSearch'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -30,7 +31,8 @@ export default function RootLayout({
                   <p className="text-xs text-slate-500 dark:text-slate-400 -mt-1">Beauty • Grooming • Oral Care • More</p>
                 </div>
               </div>
-              <nav className="hidden md:flex items-center gap-6 text-sm">
+              <nav className="hidden md:flex items-center gap-4 text-sm">
+                <GlobalSearch />
                 <Link href="/" className="hover:text-brand-700">Overview</Link>
                 <Link href="/category" className="hover:text-brand-700">Category & Brand</Link>
                 <Link href="/retailer" className="hover:text-brand-700">Retailer</Link>
