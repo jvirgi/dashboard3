@@ -38,11 +38,18 @@ export default function OverviewPage() {
   const [selectedThemes, setSelectedThemes] = useState<string[]>([])
   const [ratingRange, setRatingRange] = useState<[number, number]>([1,5])
   const [productQuery, setProductQuery] = useState(decodeURIComponent(search.get('q') || ''))
+  const [deferredPQ, setDeferredPQ] = useState(productQuery)
   // keep productQuery synced with URL param so Global Search selections apply
   useEffect(()=>{
     setProductQuery(decodeURIComponent(search.get('q') || ''))
+    setDeferredPQ(decodeURIComponent(search.get('q') || ''))
   }, [search])
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([])
+
+  useEffect(()=>{
+    const id = setTimeout(()=> setDeferredPQ(productQuery), 150)
+    return ()=> clearTimeout(id)
+  }, [productQuery])
 
   const { categories, brands, products, retailers, dates, reviews, themes } = data
 
@@ -101,7 +108,7 @@ export default function OverviewPage() {
     const regionSet = selectedRegions.length === 0 ? null : new Set(selectedRegions)
     const themeSet = selectedThemes.length === 0 ? null : new Set(selectedThemes)
     const attrSet = selectedAttributes.length === 0 ? null : new Set(selectedAttributes)
-    const pq = productQuery.trim().toLowerCase()
+    const pq = deferredPQ.trim().toLowerCase()
 
     const filteredReviews = monthlyPool.filter((r) => {
       // product and brand checks

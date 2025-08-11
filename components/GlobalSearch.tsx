@@ -29,24 +29,30 @@ export function GlobalSearch(){
     return ()=> document.removeEventListener('keydown', onKey)
   }, [])
 
+  const { products, brands, categories, retailers, themes, reviews } = sampleData
+
+  // Precompute brand volumes once to avoid scanning 100k reviews per open
+  const brandVolumes = React.useMemo(()=>{
+    const counts = new Map<string, number>()
+    for (const b of brands) counts.set(b.brandId, 0)
+    for (const r of reviews) {
+      const p = products.find(p=>p.productId===r.productId)
+      if (!p) continue
+      counts.set(p.brandId, (counts.get(p.brandId) || 0) + 1)
+    }
+    return counts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const suggestions = React.useMemo(()=>{
     const q = query.trim().toLowerCase()
     const list: Suggestion[] = []
-    const { products, brands, categories, retailers, themes, reviews } = sampleData
 
     if (!q) {
-      // Show all brands (next level under categories) ordered by review volume
-      const brandCount = new Map<string, number>()
-      for (const b of brands) brandCount.set(b.brandId, 0)
-      for (const r of reviews) {
-        const p = products.find(p=>p.productId===r.productId)
-        if (!p) continue
-        brandCount.set(p.brandId, (brandCount.get(p.brandId) || 0) + 1)
-      }
       const brandSuggestions: Suggestion[] = brands
         .map(b=>{
           const cat = categories.find(c=>c.categoryId===b.categoryId)!
-          const count = brandCount.get(b.brandId) || 0
+          const count = brandVolumes.get(b.brandId) || 0
           return { id: b.brandId, type:'Brand' as const, label: b.name, meta: `${cat.name} • ${count.toLocaleString()} reviews`, keyword: b.name.toLowerCase() }
         })
         .sort((a,b)=>{
@@ -78,7 +84,7 @@ export function GlobalSearch(){
       if (t.name.toLowerCase().includes(q)) list.push({ id: t.themeId, type:'Theme', label: t.name, keyword: t.name.toLowerCase() })
     }
     return list.slice(0, 50)
-  }, [query])
+  }, [query, brands, categories, retailers, themes, products, brandVolumes])
 
   const onSelect = (s: Suggestion) => {
     const q = encodeURIComponent(s.label)
