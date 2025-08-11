@@ -29,29 +29,47 @@ const brands: BrandDim[] = []
 const products: ProductDim[] = []
 
 const brandNames: Record<string, string[]> = {
-  cat_beauty: ['Aurelia', 'Velura', 'Bloomé', 'Chroma', 'Lustre'],
-  cat_groom: ['EdgeCraft', 'Stately', 'TrimX', 'UrbanMan'],
-  cat_oral: ['WhitenUp', 'FreshMint', 'EnamelPro', 'BrightSmile'],
-  cat_house: ['PureHome', 'Sparkle', 'CitrusWave', 'EcoClean']
+  cat_beauty: ['Aurelia', 'Velura', 'Bloomé', 'Chroma', 'Lustre', 'DermaLux', 'SilkSkin'],
+  cat_groom: ['EdgeCraft', 'Stately', 'TrimX', 'UrbanMan', 'SteelGroom'],
+  cat_oral: ['WhitenUp', 'FreshMint', 'EnamelPro', 'BrightSmile', 'PureDent'],
+  cat_house: ['PureHome', 'Sparkle', 'CitrusWave', 'EcoClean', 'ShineBright']
 }
 
 const priceTiers: ProductDim['priceTier'][] = ['Value', 'Mass', 'Premium']
+
+// richer product name parts
+const lineNames = ['Radiant Renewal', 'Hydra Boost', 'Ultra Repair', 'Daily Defense', 'Advanced Care', 'Pro Series', 'Gentle Touch']
+const beautyKinds = ['Vitamin C Serum', 'Hyaluronic Acid Moisturizer', 'Retinol Night Cream', 'Foaming Facial Cleanser', 'Brightening Eye Gel']
+const groomKinds = ['Precision Beard Trimmer', '5-Blade Razor Kit', 'Aftershave Balm', 'Beard Oil', 'Shave Gel']
+const oralKinds = ['Whitening Toothpaste', 'Electric Toothbrush', 'Enamel Repair Mouthwash', 'Whitening Strips', 'Interdental Brush Kit']
+const houseKinds = ['Multi-Surface Cleaner', 'Laundry Detergent Pods', 'Dishwasher Tablets', 'Glass & Surface Spray', 'Floor Cleaning Solution']
+const sizes = ['0.5 fl oz', '1.0 fl oz', '1.7 fl oz', '6.7 fl oz', '8 oz', '12 oz', '250 mL', '500 mL', '30 Count', '60 Count', '90 Count']
+const packs = ['Single', '2-Pack', '3-Pack', 'Family Size', 'Travel Size']
 
 for (const c of categories) {
   for (const name of brandNames[c.categoryId]) {
     const brandId = `b_${name.toLowerCase().replace(/[^a-z]/g,'')}`
     brands.push({ brandId, categoryId: c.categoryId, name })
-    const numProducts = 6 + Math.floor(rand() * 4) // 6-9 products per brand
+    const numProducts = 10 + Math.floor(rand() * 8) // 10-17 products per brand
     for (let i = 0; i < numProducts; i++) {
       const productId = `${brandId}_p${i+1}`
       const priceTier = priceTiers[Math.floor(rand()*priceTiers.length)]
-      const nameSuffix = ['Serum','Cream','Gel','Foam','Brush','Kit','Pads','Strips','Cleanser'][i % 9]
       const attrs = [
-        rand()>0.5 ? 'Fragrance-free' : 'Fragranced',
-        rand()>0.5 ? 'Sensitive-skin' : 'All-skin',
+        rand()>0.5 ? 'Fragrance-Free' : 'Fragranced',
+        rand()>0.5 ? 'Sensitive Skin' : 'All Skin Types',
         rand()>0.5 ? 'Vegan' : 'Regular',
       ]
-      products.push({ productId, brandId, name: `${name} ${nameSuffix} ${i+1}`, priceTier, attributes: attrs })
+      // choose kind by category
+      const kind = c.categoryId === 'cat_beauty' ? pick(rand, beautyKinds)
+        : c.categoryId === 'cat_groom' ? pick(rand, groomKinds)
+        : c.categoryId === 'cat_oral' ? pick(rand, oralKinds)
+        : pick(rand, houseKinds)
+      const line = pick(rand, lineNames)
+      const size = pick(rand, sizes)
+      const pack = pick(rand, packs)
+      // retailer-style long name
+      const longName = `${name} ${line} ${kind}, ${size}, ${pack} | ${attrs.join(' | ')}`
+      products.push({ productId, brandId, name: longName, priceTier, attributes: attrs })
     }
   }
 }
@@ -119,7 +137,7 @@ const retailerVolumeBias: Record<string, number> = {
   ret_walgreens: 0.03
 }
 
-const quotePhrases = {
+const openingPhrases = {
   positive: [
     'Exceeded my expectations', 'Absolutely love it', 'Great value', 'Works like a charm', 'Smells amazing',
     'Gentle and effective', 'Noticeable results', 'Will repurchase', 'Highly recommend', 'Fantastic quality'
@@ -133,15 +151,46 @@ const quotePhrases = {
   ]
 }
 
+const bodyPhrases = [
+  'The texture is pleasant and absorbs quickly',
+  'Packaging felt sturdy and premium',
+  'I noticed a difference after two weeks of use',
+  'The scent lingers but is not overpowering',
+  'Instructions were clear and easy to follow',
+  'It pairs well with the rest of my routine',
+  'Value is great compared to alternatives',
+  'It was gentle on my sensitive skin',
+  'Battery life is solid and charging is quick',
+  'Whitening results were subtle but noticeable'
+]
+
+function clampTextToRange(text: string, minLen = 20, maxLen = 500): string {
+  if (text.length < minLen) return text.padEnd(minLen, '.')
+  if (text.length <= maxLen) return text
+  const truncated = text.slice(0, maxLen)
+  const lastPeriod = truncated.lastIndexOf('.')
+  return (lastPeriod > 40 ? truncated.slice(0, lastPeriod + 1) : truncated) // try to end on a sentence
+}
+
 function buildReviewText(rand: () => number, themesChosen: ThemeDim[], rating: number): string {
-  const pool = rating >= 4 ? quotePhrases.positive : rating <= 2 ? quotePhrases.negative : quotePhrases.neutral
-  const prefix = pick(rand, pool)
-  const themePart = themesChosen.length ? ` - ${themesChosen[0].name.toLowerCase()} was a key factor.` : ''
-  return `${prefix}.${themePart}`
+  const pool = rating >= 4 ? openingPhrases.positive : rating <= 2 ? openingPhrases.negative : openingPhrases.neutral
+  const sentences: string[] = []
+  sentences.push(pick(rand, pool) + '.')
+  if (themesChosen.length) {
+    sentences.push(`The ${themesChosen[0].name.toLowerCase()} was a key factor in my experience.`)
+  }
+  const extra = 1 + Math.floor(rand() * 4) // 1-4 extra sentences
+  for (let i = 0; i < extra; i++) sentences.push(pick(rand, bodyPhrases) + '.')
+  const base = sentences.join(' ')
+  // randomize length target between 20 and 500
+  const target = 20 + Math.floor(rand() * 480)
+  let out = base
+  while (out.length < target) out += ' ' + pick(rand, bodyPhrases) + '.'
+  return clampTextToRange(out, 20, 500)
 }
 
 // Generate a target number of reviews by random sampling
-const TARGET_REVIEWS = 6000
+const TARGET_REVIEWS = 100_000
 
 const reviews: ReviewFact[] = []
 
@@ -155,7 +204,9 @@ const regions: Array<{ region: ReviewFact['region']; country: string[] }> = [
   { region: 'LATAM', country: ['BR','MX','AR','CL'] }
 ]
 
-for (let i = 0; i < TARGET_REVIEWS; i++) {
+let attempts = 0
+while (reviews.length < TARGET_REVIEWS) {
+  attempts++
   const product = pick(rand, products)
   const brand = brandById.get(product.brandId)!
   const category = brand.categoryId
@@ -187,7 +238,7 @@ for (let i = 0; i < TARGET_REVIEWS; i++) {
   const country = pick(rand, geo.country)
 
   reviews.push({
-    reviewId: `r_${i}`,
+    reviewId: `r_${reviews.length}`,
     productId: product.productId,
     retailerId: retailer.retailerId,
     dateKey: date.dateKey,

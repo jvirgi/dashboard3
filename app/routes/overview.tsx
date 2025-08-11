@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useId } from 'react'
+import { useMemo, useState, useId, useEffect } from 'react'
 import { format } from 'date-fns'
 import { sampleData } from '@/lib/sampleData'
 import { ArrowUpRight, Star, MessageSquare, TrendingUp } from 'lucide-react'
@@ -38,6 +38,10 @@ export default function OverviewPage() {
   const [selectedThemes, setSelectedThemes] = useState<string[]>([])
   const [ratingRange, setRatingRange] = useState<[number, number]>([1,5])
   const [productQuery, setProductQuery] = useState(decodeURIComponent(search.get('q') || ''))
+  // keep productQuery synced with URL param so Global Search selections apply
+  useEffect(()=>{
+    setProductQuery(decodeURIComponent(search.get('q') || ''))
+  }, [search])
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([])
 
   const { categories, brands, products, retailers, dates, reviews, themes } = data
