@@ -21,6 +21,7 @@ import { RangeSlider } from '@/components/charts/RangeSlider'
 import { TimeframeControl, TimeframeValue } from '@/components/TimeframeControl'
 import { FiltersDrawer } from '@/components/FiltersDrawer'
 import { ActiveFilterChips } from '@/components/ActiveFilterChips'
+import { ReviewsModal } from '@/components/ReviewsModal'
 
 export default function OverviewPage() {
   const data = sampleData
@@ -34,6 +35,7 @@ export default function OverviewPage() {
   const [range, setRange] = useState<[number, number]>([0, 100])
   const [timeframe, setTimeframe] = useState<TimeframeValue>({ mode: 'preset', months: 12 })
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [reviewsOpen, setReviewsOpen] = useState(false)
   const [selectedRegions, setSelectedRegions] = useState<string[]>([])
   const [selectedThemes, setSelectedThemes] = useState<string[]>([])
   const [ratingRange, setRatingRange] = useState<[number, number]>([1,5])
@@ -311,14 +313,16 @@ export default function OverviewPage() {
         </div>
         <div className="mt-3">
           <ActiveFilterChips chips={activeChips} onRemove={(key)=>{
-            if (key==='cat') setSelectedCategoryIds([])
-            if (key==='brand') setSelectedBrandIds([])
-            if (key==='ret') setSelectedRetailerIds([])
-            if (key==='reg') setSelectedRegions([])
-            if (key==='th') setSelectedThemes([])
-            if (key==='rat') setRatingRange([1,5])
-            if (key==='pq') setProductQuery('')
-            if (key==='attr') setSelectedAttributes([])
+            startTransition(()=>{
+              if (key==='cat') setSelectedCategoryIds([])
+              if (key==='brand') setSelectedBrandIds([])
+              if (key==='ret') setSelectedRetailerIds([])
+              if (key==='reg') setSelectedRegions([])
+              if (key==='th') setSelectedThemes([])
+              if (key==='rat') setRatingRange([1,5])
+              if (key==='pq') setProductQuery('')
+              if (key==='attr') setSelectedAttributes([])
+            })
           }} />
         </div>
       </div>
@@ -349,7 +353,7 @@ export default function OverviewPage() {
           )}
         ]}
         onApply={()=> setDrawerOpen(false)}
-        onReset={()=>{ setSelectedRegions([]); setSelectedThemes([]); setRatingRange([1,5]); setProductQuery(''); setSelectedAttributes([]) }}
+        onReset={()=> startTransition(()=>{ setSelectedRegions([]); setSelectedThemes([]); setRatingRange([1,5]); setProductQuery(''); setSelectedAttributes([]) })}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -393,7 +397,7 @@ export default function OverviewPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <AnimateCard className="p-4 xl:col-span-2" >
-          <div id={trendCardId} className="flex items-center justify-between mb-2">
+          <div id={trendCardId} className="flex items-center justify-between mb-2" onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
             <h3 className="font-semibold">Monthly Trend</h3>
             <div className="flex items-center gap-2">
               <TimeGranularity value={granularity} onChange={(g)=> startTransition(()=> setGranularity(g))} />
@@ -410,7 +414,11 @@ export default function OverviewPage() {
             <h3 className="font-semibold">Rating Distribution</h3>
             <ExportButton targetId={ratingCardId} filename="rating-distribution.png" />
           </div>
-          {isPending ? <Skeleton className="h-72" /> : <BarChartViz data={ratingDist} xKey="name" barKey="value" color="#f59e0b" />}
+          {isPending ? <Skeleton className="h-72" /> : (
+            <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+              <BarChartViz data={ratingDist} xKey="name" barKey="value" color="#f59e0b" />
+            </div>
+          )}
         </AnimateCard>
       </div>
 
@@ -419,16 +427,24 @@ export default function OverviewPage() {
           <h3 className="font-semibold">Top Themes</h3>
           <ExportButton targetId={themeCardId} filename="top-themes.png" />
         </div>
-        {isPending ? <Skeleton className="h-72" /> : <BarChartViz data={themeTop} xKey="name" barKey="count" color="#7c3aed" onBarClick={(name)=>{
-          const b = brands.find(br=>br.name===name); if (b) setSelectedBrandIds([b.brandId])
-        }} />}
+        {isPending ? <Skeleton className="h-72" /> : (
+          <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+            <BarChartViz data={themeTop} xKey="name" barKey="count" color="#7c3aed" onBarClick={(name)=>{
+              const b = brands.find(br=>br.name===name); if (b) setSelectedBrandIds([b.brandId])
+            }} />
+          </div>
+        )}
       </AnimateCard>
 
       <AnimateCard className="p-4">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold mb-2">Rating Mix Shift</h3>
         </div>
-        {isPending ? <Skeleton className="h-72" /> : <StackedRatingArea data={slicedTrend} showBrush={false} />}
+        {isPending ? <Skeleton className="h-72" /> : (
+          <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+            <StackedRatingArea data={slicedTrend} showBrush={false} />
+          </div>
+        )}
         <div className="mt-2">
           <RangeSlider min={0} max={100} value={range} onChange={setRange} />
         </div>
@@ -451,6 +467,16 @@ export default function OverviewPage() {
           </div>
         )}
       </AnimateCard>
+      <ReviewsModal
+        open={reviewsOpen}
+        onOpenChange={setReviewsOpen}
+        reviews={filtered.filteredReviews}
+        brands={brands}
+        products={products}
+        retailers={retailers}
+        themes={themes}
+        categories={categories}
+      />
     </div>
   )
 }

@@ -8,12 +8,14 @@ import { AnimateCard } from '@/components/AnimateCard'
 import { TreemapViz } from '@/components/charts/TreemapViz'
 import { MonthSegment } from '@/components/MonthSegment'
 import { useRouter } from 'next/navigation'
+import { ReviewsModal } from '@/components/ReviewsModal'
 
 export default function ThemesPage(){
   const data = sampleData
   const router = useRouter()
-  const { themes, reviews, dates } = data
+  const { themes, reviews, dates, products, brands, categories, retailers } = data
   const [months, setMonths] = useState<number>(12)
+  const [reviewsOpen, setReviewsOpen] = useState(false)
 
   const cutoff = useMemo(()=>dates.sort((a,b)=>a.date.getTime()-b.date.getTime()).slice(-months).map(d=>d.dateKey), [dates, months])
   const filtered = useMemo(()=>reviews.filter(r=>cutoff.includes(r.dateKey)), [reviews, cutoff])
@@ -54,17 +56,23 @@ export default function ThemesPage(){
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Theme Volume</h3>
-          <BarChartViz data={themeStats.map(t=>({name:t.name, value:t.volume}))} xKey="name" barKey="value" color="#8b5cf6" onBarClick={(name)=> router.push(`/?brand=${encodeURIComponent(name)}`)} />
+          <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+            <BarChartViz data={themeStats.map(t=>({name:t.name, value:t.volume}))} xKey="name" barKey="value" color="#8b5cf6" onBarClick={(name)=> router.push(`/?brand=${encodeURIComponent(name)}`)} />
+          </div>
         </AnimateCard>
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Theme Sentiment</h3>
-          <BarChartViz data={themeStats.map(t=>({name:t.name, value:t.sentiment}))} xKey="name" barKey="value" color="#10b981" onBarClick={(name)=> router.push(`/?brand=${encodeURIComponent(name)}`)} />
+          <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+            <BarChartViz data={themeStats.map(t=>({name:t.name, value:t.sentiment}))} xKey="name" barKey="value" color="#10b981" onBarClick={(name)=> router.push(`/?brand=${encodeURIComponent(name)}`)} />
+          </div>
         </AnimateCard>
       </div>
 
       <AnimateCard className="p-4">
         <h3 className="font-semibold mb-2">Theme Composition (Treemap)</h3>
-        <TreemapViz data={themeStats.map(t=>({ name: t.name, value: t.volume }))} />
+        <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+          <TreemapViz data={themeStats.map(t=>({ name: t.name, value: t.volume }))} />
+        </div>
       </AnimateCard>
 
       <AnimateCard className="p-4">
@@ -79,6 +87,8 @@ export default function ThemesPage(){
           ))}
         </div>
       </AnimateCard>
+
+      <ReviewsModal open={reviewsOpen} onOpenChange={setReviewsOpen} reviews={filtered} products={products} brands={brands} categories={categories} retailers={retailers} themes={themes} />
     </div>
   )
 }

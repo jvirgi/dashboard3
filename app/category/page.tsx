@@ -10,6 +10,7 @@ import { TreemapViz } from '@/components/charts/TreemapViz'
 import { ExportButton } from '@/components/ExportButton'
 import { Skeleton } from '@/components/Skeleton'
 import { useRouter } from 'next/navigation'
+import { ReviewsModal } from '@/components/ReviewsModal'
 
 export default function CategoryBrandPage() {
   const data = sampleData
@@ -20,6 +21,7 @@ export default function CategoryBrandPage() {
   const [selectedBrandId, setSelectedBrandId] = useState<string | 'all'>('all')
   const [months, setMonths] = useState<number>(12)
   const [isPending, startTransition] = useTransition()
+  const [reviewsOpen, setReviewsOpen] = useState(false)
 
   const cutoff = useMemo(() => dates.sort((a,b)=>a.date.getTime()-b.date.getTime()).slice(-months).map(d=>d.dateKey), [dates, months])
 
@@ -99,17 +101,21 @@ export default function CategoryBrandPage() {
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Avg Rating by Category</h3>
           {isPending ? <Skeleton className="h-72" /> : (
-            <BarChartViz data={byCategory} xKey="name" barKey="value" color="#14b8a6" onBarClick={(name)=>{
-              const c = categories.find(cat=>cat.name===name); if (c) router.push(`/?category=${encodeURIComponent(c.name)}`)
-            }} />
+            <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+              <BarChartViz data={byCategory} xKey="name" barKey="value" color="#14b8a6" onBarClick={(name)=>{
+                const c = categories.find(cat=>cat.name===name); if (c) router.push(`/?category=${encodeURIComponent(c.name)}`)
+              }} />
+            </div>
           )}
         </AnimateCard>
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Top Brands</h3>
           {isPending ? <Skeleton className="h-72" /> : (
-            <BarChartViz data={topBrands.map(b=>({name:b.name, value:b.avg}))} xKey="name" barKey="value" color="#3b82f6" onBarClick={(name)=>{
-              const b = topBrands.find(tb=>tb.name===name); if (b) router.push(`/?brand=${encodeURIComponent(b.name)}`)
-            }} />
+            <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+              <BarChartViz data={topBrands.map(b=>({name:b.name, value:b.avg}))} xKey="name" barKey="value" color="#3b82f6" onBarClick={(name)=>{
+                const b = topBrands.find(tb=>tb.name===name); if (b) router.push(`/?brand=${encodeURIComponent(b.name)}`)
+              }} />
+            </div>
           )}
         </AnimateCard>
       </div>
@@ -188,6 +194,7 @@ export default function CategoryBrandPage() {
           )}
         </div>
       </AnimateCard>
+      <ReviewsModal open={reviewsOpen} onOpenChange={setReviewsOpen} reviews={filteredReviews} products={products} brands={brands} categories={categories} retailers={retailers} themes={themes} />
     </div>
   )
 }

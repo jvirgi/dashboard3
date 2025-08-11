@@ -8,14 +8,16 @@ import { HeatmapGrid } from '@/components/HeatmapGrid'
 import { MonthSegment } from '@/components/MonthSegment'
 import { Skeleton } from '@/components/Skeleton'
 import { useRouter } from 'next/navigation'
+import { ReviewsModal } from '@/components/ReviewsModal'
 
 export default function RetailerPage(){
   const data = sampleData
-  const { retailers, dates, reviews } = data
+  const { retailers, dates, reviews, products, brands, categories, themes } = data
   const router = useRouter()
 
   const [months, setMonths] = useState<number>(12)
   const [isPending, startTransition] = useTransition()
+  const [reviewsOpen, setReviewsOpen] = useState(false)
 
   const cutoff = useMemo(() => dates.sort((a,b)=>a.date.getTime()-b.date.getTime()).slice(-months).map(d=>d.dateKey), [dates, months])
 
@@ -77,34 +79,31 @@ export default function RetailerPage(){
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Avg Rating by Retailer</h3>
           {isPending ? <Skeleton className="h-80" /> : (
-            <BarChartViz data={byRetailer} xKey="name" barKey="value" color="#ef4444" onBarClick={(name)=>{ router.push(`/?retailer=${encodeURIComponent(name)}`) }} />
+            <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+              <BarChartViz data={byRetailer} xKey="name" barKey="value" color="#ef4444" onBarClick={(name)=>{ router.push(`/?retailer=${encodeURIComponent(name)}`) }} />
+            </div>
           )}
         </AnimateCard>
         <AnimateCard className="p-4">
           <h3 className="font-semibold mb-2">Review Volume by Retailer</h3>
           {isPending ? <Skeleton className="h-80" /> : (
-            <BarChartViz data={volumeByRetailer} xKey="name" barKey="value" color="#f59e0b" onBarClick={(name)=>{ router.push(`/?retailer=${encodeURIComponent(name)}`) }} />
+            <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+              <BarChartViz data={volumeByRetailer} xKey="name" barKey="value" color="#f59e0b" onBarClick={(name)=>{ router.push(`/?retailer=${encodeURIComponent(name)}`) }} />
+            </div>
           )}
         </AnimateCard>
       </div>
 
       <AnimateCard className="p-4">
         <h3 className="font-semibold mb-2">Monthly Avg Rating Heatmap</h3>
-        {isPending ? <Skeleton className="h-72" /> : <HeatmapGrid rows={retailers.map(r=>r.name)} cols={cutoff.map(c=>new Date(c+'-01').toLocaleDateString(undefined,{month:'short'}))} values={(()=>{
-          const rows = retailers.length
-          const cols = cutoff.length
-          const mat = Array.from({length: rows}, ()=> Array(cols).fill(NaN))
-          const idxRetailer = new Map(retailers.map((r,i)=>[r.retailerId, i]))
-          const idxCol = new Map(cutoff.map((c,i)=>[c,i]))
-          for (const rev of filteredReviews){
-            const ri = idxRetailer.get(rev.retailerId); const ci = idxCol.get(rev.dateKey)
-            if (ri===undefined || ci===undefined) continue
-            if (Number.isNaN(mat[ri][ci])) mat[ri][ci] = 0
-            mat[ri][ci] = Number.isNaN(mat[ri][ci]) ? rev.rating : (mat[ri][ci] + rev.rating) / 2
-          }
-          return mat
-        })()} />}
+        {isPending ? <Skeleton className="h-72" /> : (
+          <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+            <HeatmapGrid rows={retailers.map(r=>r.name)} cols={cutoff.map(c=>new Date(c+'-01').toLocaleDateString(undefined,{month:'short'}))} values={heatmap.values} />
+          </div>
+        )}
       </AnimateCard>
+
+      <ReviewsModal open={reviewsOpen} onOpenChange={setReviewsOpen} reviews={filteredReviews} products={products} brands={brands} categories={categories} retailers={retailers} themes={themes} />
     </div>
   )
 }
