@@ -18,6 +18,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { TimeGranularity, Granularity } from '@/components/TimeGranularity'
 import { MultiSelectCombobox, MultiOption } from '@/components/MultiSelectCombobox'
 import { RangeSlider } from '@/components/charts/RangeSlider'
+import { TimeframeControl, TimeframeValue } from '@/components/TimeframeControl'
 
 export default function OverviewPage() {
   const data = sampleData
@@ -29,6 +30,7 @@ export default function OverviewPage() {
   const [granularity, setGranularity] = useState<Granularity>('month')
   const [isPending, startTransition] = useTransition()
   const [range, setRange] = useState<[number, number]>([0, 100])
+  const [timeframe, setTimeframe] = useState<TimeframeValue>({ mode: 'preset', months: 12 })
 
   const { categories, brands, products, retailers, dates, reviews, themes } = data
 
@@ -36,7 +38,18 @@ export default function OverviewPage() {
   const brandOptions: MultiOption[] = brands.map(b=>({ value: b.brandId, label: b.name, group: categories.find(c=>c.categoryId===b.categoryId)?.name }))
   const retailerOptions: MultiOption[] = retailers.map(r=>({ value: r.retailerId, label: r.name }))
 
-  const cutoffKeys = useMemo(() => dates.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(-months).map(d=>d.dateKey), [dates, months])
+  const cutoffKeys = useMemo(() => {
+    const sorted = [...dates].sort((a,b)=>a.date.getTime()-b.date.getTime())
+    if (timeframe.mode==='preset') {
+      return sorted.slice(-timeframe.months).map(d=>d.dateKey)
+    } else {
+      const startIdx = sorted.findIndex(d=>d.dateKey===timeframe.startKey)
+      const endIdx = sorted.findIndex(d=>d.dateKey===timeframe.endKey)
+      if (startIdx === -1 || endIdx === -1) return sorted.slice(-12).map(d=>d.dateKey)
+      const [s,e] = startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx]
+      return sorted.slice(s, e+1).map(d=>d.dateKey)
+    }
+  }, [dates, timeframe])
 
   const filtered = useMemo(() => {
     const cutoff = cutoffKeys
@@ -205,6 +218,10 @@ export default function OverviewPage() {
     <div className="space-y-6">
       <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Timeframe</label>
+            <TimeframeControl dates={dates} value={timeframe} onChange={(v)=> startTransition(()=> setTimeframe(v))} />
+          </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">Categories</label>
             <MultiSelectCombobox values={selectedCategoryIds} onChange={(vals)=>startTransition(()=>setSelectedCategoryIds(vals))} options={categoryOptions} placeholder="All Categories" />
