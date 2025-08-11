@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Command } from 'cmdk'
 import { CheckIcon, Cross2Icon, MagnifyingGlassIcon } from '@radix-ui/react-icons'
+import { createPortal } from 'react-dom'
 
 export type MultiOption = { value: string; label: string; group?: string; meta?: string }
 
@@ -23,6 +24,9 @@ export function MultiSelectCombobox({
 }){
   const [open, setOpen] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const triggerRef = React.useRef<HTMLButtonElement>(null)
+  const menuRef = React.useRef<HTMLDivElement>(null)
+  const [coords, setCoords] = React.useState<{top:number; left:number; width:number} | null>(null)
 
   const groups = React.useMemo(()=>{
     const map = new Map<string, MultiOption[]>()
@@ -43,10 +47,48 @@ export function MultiSelectCombobox({
 
   const clearAll = (e: React.MouseEvent) => { e.stopPropagation(); onChange([]) }
 
+  const openMenu = () => {
+    setOpen(true)
+    setTimeout(()=>{
+      inputRef.current?.focus()
+      if (triggerRef.current){
+        const rect = triggerRef.current.getBoundingClientRect()
+        const left = Math.min(rect.left, window.innerWidth - rect.width - 8)
+        const top = Math.min(rect.bottom + 8, window.innerHeight - 200)
+        setCoords({ top, left, width: rect.width })
+      }
+    }, 0)
+  }
+
+  const closeMenu = () => setOpen(false)
+
+  React.useEffect(()=>{
+    if (!open) return
+    const onResize = () => closeMenu()
+    const onClickAway = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (menuRef.current?.contains(t)) return
+      if (triggerRef.current?.contains(t)) return
+      closeMenu()
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeMenu() }
+    window.addEventListener('resize', onResize)
+    window.addEventListener('scroll', onResize, true)
+    document.addEventListener('mousedown', onClickAway, true)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('scroll', onResize, true)
+      document.removeEventListener('mousedown', onClickAway, true)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
   return (
     <div className="relative min-w-[280px]">
       <button
-        onClick={()=>{ setOpen(true); setTimeout(()=>inputRef.current?.focus(), 0) }}
+        ref={triggerRef}
+        onClick={openMenu}
         className="inline-flex items-center justify-between rounded-full bg-white/70 backdrop-blur shadow-soft px-4 py-2 text-sm w-full border-0 [background:linear-gradient(white,white)_padding-box,linear-gradient(90deg,#a78bfa,#f472b6)_border-box] border border-transparent"
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -68,37 +110,41 @@ export function MultiSelectCombobox({
           </button>
         )}
       </button>
-      {open && (
-        <div className="absolute z-50 mt-2 w-[520px] max-w-[90vw] overflow-hidden rounded-xl border bg-white/95 backdrop-blur shadow-soft">
-          <Command shouldFilter={true} filter={(val, search)=>val.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
-            <div className="flex items-center gap-2 border-b px-3 py-2">
-              <MagnifyingGlassIcon />
-              <Command.Input ref={inputRef} placeholder={placeholder} className="w-full outline-none bg-transparent text-sm" />
-            </div>
-            <Command.List className="max-h-72 overflow-auto p-1">
-              <Command.Empty className="px-3 py-2 text-sm text-slate-500">{emptyText}</Command.Empty>
-              {groups.map(([group, opts]) => (
-                <Command.Group key={group} heading={group} className="text-[11px] uppercase tracking-wide text-slate-400">
-                  {opts.map(opt => (
-                    <Command.Item
-                      key={opt.value}
-                      value={opt.label}
-                      onSelect={() => toggle(opt.value)}
-                      className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-700 aria-selected:bg-brand-50"
-                    >
-                      <span className={`h-2.5 w-2.5 rounded-full ${values.includes(opt.value) ? 'bg-brand-600' : 'bg-slate-300'}`} />
-                      <div className="flex-1 truncate">
-                        <div className="truncate">{opt.label}</div>
-                        {opt.meta && <div className="text-xs text-slate-500 truncate">{opt.meta}</div>}
-                      </div>
-                      {values.includes(opt.value) && <CheckIcon />}
-                    </Command.Item>
-                  ))}
-                </Command.Group>
-              ))}
-            </Command.List>
-          </Command>
-        </div>
+      {open && coords && createPortal(
+        <>
+          <div onMouseDown={closeMenu} onTouchStart={closeMenu} style={{ position:'fixed', inset:0, zIndex: 4000 }} />
+          <div ref={menuRef} style={{ position: 'fixed', top: coords.top, left: coords.left, width: Math.min(coords.width, window.innerWidth - 16), zIndex: 5000 }} className="max-w-[90vw] overflow-hidden rounded-xl border bg-white/95 backdrop-blur shadow-soft max-height-[70vh] max-h-[70vh] overflow-auto">
+            <Command shouldFilter={true} filter={(val, search)=>val.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
+              <div className="flex items-center gap-2 border-b px-3 py-2">
+                <MagnifyingGlassIcon />
+                <Command.Input ref={inputRef} placeholder={placeholder} className="w-full outline-none bg-transparent text-sm" />
+              </div>
+              <Command.List className="max-h-72 overflow-auto p-1">
+                <Command.Empty className="px-3 py-2 text-sm text-slate-500">{emptyText}</Command.Empty>
+                {groups.map(([group, opts]) => (
+                  <Command.Group key={group} heading={group} className="text-[11px] uppercase tracking-wide text-slate-400">
+                    {opts.map(opt => (
+                      <Command.Item
+                        key={opt.value}
+                        value={opt.label}
+                        onSelect={() => toggle(opt.value)}
+                        className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-700 aria-selected:bg-brand-50"
+                      >
+                        <span className={`h-2.5 w-2.5 rounded-full ${values.includes(opt.value) ? 'bg-brand-600' : 'bg-slate-300'}`} />
+                        <div className="flex-1 truncate">
+                          <div className="truncate">{opt.label}</div>
+                          {opt.meta && <div className="text-xs text-slate-500 truncate">{opt.meta}</div>}
+                        </div>
+                        {values.includes(opt.value) && <CheckIcon />}
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+                ))}
+              </Command.List>
+            </Command>
+          </div>
+        </>,
+        document.body
       )}
     </div>
   )

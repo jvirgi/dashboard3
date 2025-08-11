@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Command } from 'cmdk'
 import { CheckIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons'
 import { createPortal } from 'react-dom'
+import { useDropdownManager } from './DropdownManager'
 
 export type CommandOption = { value: string; label: string; group?: string; meta?: string }
 
@@ -27,6 +28,8 @@ export function CommandCombobox({
   const triggerRef = React.useRef<HTMLButtonElement>(null)
   const menuRef = React.useRef<HTMLDivElement>(null)
   const [coords, setCoords] = React.useState<Coords>(null)
+  const mgr = useDropdownManager()
+  const id = React.useId()
 
   const groups = React.useMemo(()=>{
     const map = new Map<string, CommandOption[]>()
@@ -39,6 +42,7 @@ export function CommandCombobox({
   }, [options])
 
   const openMenu = () => {
+    mgr?.open(id)
     setOpen(true)
     setTimeout(()=>{
       inputRef.current?.focus()
@@ -51,18 +55,18 @@ export function CommandCombobox({
     }, 0)
   }
 
+  const closeMenu = () => { setOpen(false); mgr?.close() }
+
   React.useEffect(()=>{
     if (!open) return
-    const onResize = () => {
-      setOpen(false)
-    }
+    const onResize = () => { closeMenu() }
     const onClickAway = (e: MouseEvent) => {
       const t = e.target as Node
       if (menuRef.current?.contains(t)) return
       if (triggerRef.current?.contains(t)) return
-      setOpen(false)
+      closeMenu()
     }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeMenu() }
     window.addEventListener('resize', onResize)
     window.addEventListener('scroll', onResize, true)
     document.addEventListener('mousedown', onClickAway, true)
@@ -76,6 +80,14 @@ export function CommandCombobox({
       document.removeEventListener('keydown', onKey)
     }
   }, [open])
+
+  React.useEffect(()=>{
+    if (!mgr || !open) return
+    if (mgr.openId && mgr.openId !== id) {
+      // another dropdown opened, close this one
+      setOpen(false)
+    }
+  }, [mgr?.openId, open, id])
 
   return (
     <div className="relative min-w-[280px]">
@@ -91,7 +103,7 @@ export function CommandCombobox({
       </button>
       {open && coords && createPortal(
         <>
-          <div onMouseDown={()=>setOpen(false)} onTouchStart={()=>setOpen(false)} style={{ position:'fixed', inset:0, zIndex: 4000 }} />
+          <div onMouseDown={closeMenu} onTouchStart={closeMenu} style={{ position:'fixed', inset:0, zIndex: 4000 }} />
           <div ref={menuRef} style={{ position: 'fixed', top: coords.top, left: coords.left, width: Math.min(coords.width, window.innerWidth - 16), zIndex: 5000 }} className="max-w-[90vw] rounded-xl border bg-white/95 backdrop-blur shadow-soft max-h-[60vh] overflow-auto">
             <Command shouldFilter={true} filter={(val, search)=>val.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
               <div className="flex items-center gap-2 border-b px-3 py-2">
@@ -106,7 +118,7 @@ export function CommandCombobox({
                       <Command.Item
                         key={opt.value}
                         value={opt.label}
-                        onSelect={() => { onChange(opt.value); setOpen(false) }}
+                        onSelect={() => { onChange(opt.value); closeMenu() }}
                         className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-700 aria-selected:bg-brand-50"
                       >
                         <span className="h-2.5 w-2.5 rounded-full bg-brand-500" />
