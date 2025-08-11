@@ -250,7 +250,7 @@ export default function OverviewPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl p-6 bg-white/60 backdrop-blur border border-slate-200 shadow-soft">
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
+        <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="block text-xs text-slate-500 mb-1">Timeframe</label>
             <TimeframeControl dates={dates} value={timeframe} onChange={(v)=> startTransition(()=> setTimeframe(v))} />
@@ -267,7 +267,7 @@ export default function OverviewPage() {
             <label className="block text-xs text-slate-500 mb-1">Retailers</label>
             <MultiSelectCombobox values={selectedRetailerIds} onChange={(vals)=>startTransition(()=>setSelectedRetailerIds(vals))} options={retailerOptions} placeholder="All Retailers" />
           </div>
-          <button onClick={()=>setDrawerOpen(true)} className="md:ml-auto badge border-slate-200 bg-white hover:bg-slate-50 text-slate-700">More filters</button>
+          <button onClick={()=>setDrawerOpen(true)} className="badge border-slate-200 bg-white hover:bg-slate-50 text-slate-700">More filters</button>
         </div>
         <div className="mt-3">
           <ActiveFilterChips chips={activeChips} onRemove={(key)=>{
