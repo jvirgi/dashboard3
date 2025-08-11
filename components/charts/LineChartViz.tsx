@@ -18,7 +18,7 @@ function TooltipContent({ active, payload, label }: any){
 
 export function LineChartViz({ data, yLeftKey, yRightKey, syncId = 'overview', targetRating = 4.2, showBrush = false }: { data: any[]; yLeftKey: string; yRightKey: string; syncId?: string; targetRating?: number; showBrush?: boolean }){
   return (
-    <div className="h-80">
+    <div className="h-80 dropdown-open:pe-none">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} syncId={syncId} margin={{ top: 10, right: 20, left: 0, bottom: 18 }}>
           <defs>

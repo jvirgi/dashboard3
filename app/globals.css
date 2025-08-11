@@ -20,6 +20,9 @@
   animation: shimmer 1.2s infinite;
 }
 
+/* Disable pointer events on charts while a dropdown is open */
+body.dropdown-open .dropdown-open\:pe-none { pointer-events: none; }
+
 html, body, :root {
   height: 100%;
 }

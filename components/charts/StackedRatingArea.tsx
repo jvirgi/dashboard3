@@ -11,7 +11,7 @@ export function StackedRatingArea({ data, showBrush = false }: { data: Array<any
     r5: '#3b82f6'
   }
   return (
-    <div className="h-80">
+    <div className="h-80 dropdown-open:pe-none">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 18 }}>
           <defs>
