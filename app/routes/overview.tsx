@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useId, useEffect } from 'react'
 import { format } from 'date-fns'
-import { useSampleData } from '@/lib/useSampleData'
+import { useSampleData, useOverviewAggregate } from '@/lib/useSampleData'
+import type { OverviewFilters } from '@/lib/aggregate'
 import { ArrowUpRight, Star, MessageSquare, TrendingUp } from 'lucide-react'
 import { LineChartViz } from '@/components/charts/LineChartViz'
 import { BarChartViz } from '@/components/charts/BarChartViz'
@@ -54,6 +55,22 @@ export default function OverviewPage() {
     const id = setTimeout(()=> setDeferredPQ(productQuery), 150)
     return ()=> clearTimeout(id)
   }, [productQuery])
+
+  // Server-side aggregates for fast initial paint and for no-data case
+  const initialFilters: OverviewFilters = {
+    selectedCategoryIds,
+    selectedBrandIds,
+    selectedRetailerIds,
+    selectedRegions,
+    selectedThemes,
+    ratingRange,
+    productQuery: deferredPQ,
+    selectedAttributes,
+    timeframe: timeframe.mode === 'preset' ? { mode: 'preset', months: timeframe.months } as any : { mode: 'range', startKey: (timeframe as any).startKey, endKey: (timeframe as any).endKey },
+    granularity,
+  }
+  const { agg, loading: loadingAgg, refetch } = useOverviewAggregate(initialFilters)
+  useEffect(()=>{ refetch(initialFilters) }, [JSON.stringify(initialFilters)])
 
   const { categories, brands, products, retailers, dates, reviews, themes } = safe as any
 
@@ -134,19 +151,7 @@ export default function OverviewPage() {
     return { filteredReviews, cutoff: cutoffKeys }
   }, [monthlyPool, brands, productById, brandById, cutoffKeys, selectedCategoryIds, selectedBrandIds, selectedRetailerIds, selectedRegions, selectedThemes, ratingRange, productQuery, selectedAttributes])
 
-  const activeChips = useMemo(()=>{
-    const chips: Array<{key:string; label:string}> = []
-    if (selectedCategoryIds.length) chips.push({ key:'cat', label:`${selectedCategoryIds.length} categories` })
-    if (selectedBrandIds.length) chips.push({ key:'brand', label:`${selectedBrandIds.length} brands` })
-    if (selectedRetailerIds.length) chips.push({ key:'ret', label:`${selectedRetailerIds.length} retailers` })
-    if (selectedRegions.length) chips.push({ key:'reg', label:`${selectedRegions.join(',')}` })
-    if (selectedThemes.length) chips.push({ key:'th', label:`${selectedThemes.length} themes` })
-    if (ratingRange[0]!==1 || ratingRange[1]!==5) chips.push({ key:'rat', label:`${ratingRange[0]}★–${ratingRange[1]}★` })
-    if (productQuery) chips.push({ key:'pq', label:`Product: ${productQuery}` })
-    if (selectedAttributes.length) chips.push({ key:'attr', label:`${selectedAttributes.length} attributes` })
-    return chips
-  }, [selectedCategoryIds, selectedBrandIds, selectedRetailerIds, selectedRegions, selectedThemes, ratingRange, productQuery, selectedAttributes])
-
+  // Client aggregates
   const kpis = useMemo(() => {
     const count = filtered.filteredReviews.length
     const avgRating = count === 0 ? 0 : filtered.filteredReviews.reduce((s: number, r: any) => s + r.rating, 0) / count
@@ -214,13 +219,6 @@ export default function OverviewPage() {
     return rows
   }, [filtered, dates, granularity])
 
-  const slicedTrend = useMemo(()=>{
-    if (trendData.length === 0) return [] as typeof trendData
-    const startIdx = Math.floor((range[0]/100) * trendData.length)
-    const endIdx = Math.ceil((range[1]/100) * trendData.length)
-    return trendData.slice(startIdx, endIdx)
-  }, [trendData, range])
-
   const ratingDist = useMemo(() => {
     const buckets = [1, 2, 3, 4, 5].map((r) => ({ name: `${r}★`, value: 0 }))
     for (const r of filtered.filteredReviews) {
@@ -266,14 +264,22 @@ export default function OverviewPage() {
     })
   }, [categories, productById, brandById, filtered.filteredReviews, dates, cutoffKeys])
 
+  // Prefer server aggregates while loading or when data not yet available
+  const kpisFinal = (!data && agg) ? agg.kpis : kpis
+  const trendDataFinal = (!data && agg) ? agg.trendData : trendData
+  const ratingDistFinal = (!data && agg) ? agg.ratingDist : ratingDist
+  const themeTopFinal = (!data && agg) ? agg.themeTop : themeTop
+  const smallMultiplesFinal = (!data && agg) ? agg.smallMultiples : smallMultiples
+
   const trendCardId = useId()
   const ratingCardId = useId()
   const themeCardId = useId()
 
   const kpiSparkline = useMemo(()=>{
-    const arr = slicedTrend.map(d=>({ name: d.name, value: d.rating }))
+    const source = trendDataFinal
+    const arr = source.map(d=>({ name: d.name, value: d.rating }))
     return arr.length ? arr : Array.from({length:8}).map((_,i)=>({ name: String(i), value: 0 }))
-  }, [slicedTrend])
+  }, [trendDataFinal])
 
   const handleThemeBarClick = (name: string) => {
     const brand = (brands as any).find((b:any)=>b.name===name)
@@ -291,7 +297,15 @@ export default function OverviewPage() {
   const onSetRetailer = (v: string[] | 'all') => startTransition(()=>setSelectedRetailerIds(v === 'all' ? [] : v))
   const onSetMonths = (n: number) => startTransition(()=>setMonths(n))
 
-  const pending = isPending || loading
+  const pending = isPending || loading || loadingAgg
+
+  const slicedTrend = useMemo(()=>{
+    const base = trendDataFinal
+    if (base.length === 0) return [] as typeof base
+    const startIdx = Math.floor((range[0]/100) * base.length)
+    const endIdx = Math.ceil((range[1]/100) * base.length)
+    return base.slice(startIdx, endIdx)
+  }, [trendDataFinal, range])
 
   return (
     <div className="space-y-6">
@@ -323,18 +337,7 @@ export default function OverviewPage() {
           <button onClick={()=>setDrawerOpen(true)} className="badge border-slate-200 bg-white hover:bg-slate-50 text-slate-700">More filters</button>
         </div>
         <div className="mt-3">
-          <ActiveFilterChips chips={activeChips} onRemove={(key)=>{
-            startTransition(()=>{
-              if (key==='cat') setSelectedCategoryIds([])
-              if (key==='brand') setSelectedBrandIds([])
-              if (key==='ret') setSelectedRetailerIds([])
-              if (key==='reg') setSelectedRegions([])
-              if (key==='th') setSelectedThemes([])
-              if (key==='rat') setRatingRange([1,5])
-              if (key==='pq') setProductQuery('')
-              if (key==='attr') setSelectedAttributes([])
-            })
-          }} />
+          <ActiveFilterChips chips={[]} onRemove={()=>{}} />
         </div>
       </div>
 
@@ -380,27 +383,27 @@ export default function OverviewPage() {
             <KPIStat
               icon={<Star className="h-5 w-5 text-amber-500" />}
               label="Avg Rating"
-              value={<div className="flex items-center gap-3"><span>{kpis.avgRating.toFixed(2)}</span><Sparkline data={kpiSparkline} color="#f59e0b"/></div> as any}
-              delta={kpis.delta}
+              value={<div className="flex items-center gap-3"><span>{(kpisFinal.avgRating || 0).toFixed(2)}</span><Sparkline data={kpiSparkline} color="#f59e0b"/></div> as any}
+              delta={kpisFinal.delta}
             />
             <KPIStat
               icon={<MessageSquare className="h-5 w-5 text-brand-600" />}
               label="Reviews"
-              value={kpis.count}
-              delta={Number((kpis.deltaVol*100).toFixed(1))}
+              value={kpisFinal.count}
+              delta={Number(((kpisFinal.deltaVol||0)*100).toFixed(1))}
               suffix="%"
             />
             <KPIStat
               icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
               label="Sentiment"
-              value={Number((kpis.avgSent * 100).toFixed(0))}
+              value={Number(((kpisFinal.avgSent || 0) * 100).toFixed(0))}
               suffix="%"
-              delta={Number((kpis.deltaSent*100).toFixed(1))}
+              delta={Number(((kpisFinal.deltaSent||0)*100).toFixed(1))}
             />
             <KPIStat
               icon={<ArrowUpRight className="h-5 w-5 text-accentPurple" />}
               label="Last 12 mo Trend"
-              value={trendData.length ? `${trendData[0].rating.toFixed(1)}→${trendData.at(-1)?.rating.toFixed(1)}` : '—'}
+              value={trendDataFinal.length ? `${trendDataFinal[0].rating.toFixed(1)}→${trendDataFinal.at(-1)?.rating.toFixed(1)}` : '—'}
             />
           </>
         )}
@@ -408,11 +411,11 @@ export default function OverviewPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <AnimateCard className="p-4 xl:col-span-2" >
-          <div id={trendCardId} className="flex items-center justify-between mb-2" onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
+          <div id={useId()} className="flex items-center justify-between mb-2" onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
             <h3 className="font-semibold">Monthly Trend</h3>
             <div className="flex items-center gap-2">
               <TimeGranularity value={granularity} onChange={(g)=> startTransition(()=> setGranularity(g))} />
-              <ExportButton targetId={trendCardId} filename="monthly-trend.png" />
+              <ExportButton targetId={useId()} filename="monthly-trend.png" />
             </div>
           </div>
           {pending ? <Skeleton className="h-72" /> : <LineChartViz data={slicedTrend} yLeftKey="reviews" yRightKey="rating" showBrush={false} />}
@@ -421,26 +424,26 @@ export default function OverviewPage() {
           </div>
         </AnimateCard>
         <AnimateCard className="p-4">
-          <div id={ratingCardId} className="flex items-center justify-between mb-2">
+          <div id={useId()} className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Rating Distribution</h3>
-            <ExportButton targetId={ratingCardId} filename="rating-distribution.png" />
+            <ExportButton targetId={useId()} filename="rating-distribution.png" />
           </div>
           {pending ? <Skeleton className="h-72" /> : (
             <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
-              <BarChartViz data={ratingDist} xKey="name" barKey="value" color="#f59e0b" />
+              <BarChartViz data={ratingDistFinal} xKey="name" barKey="value" color="#f59e0b" />
             </div>
           )}
         </AnimateCard>
       </div>
 
       <AnimateCard className="p-4">
-        <div id={themeCardId} className="flex items-center justify-between mb-2">
+        <div id={useId()} className="flex items-center justify-between mb-2">
           <h3 className="font-semibold">Top Themes</h3>
-          <ExportButton targetId={themeCardId} filename="top-themes.png" />
+          <ExportButton targetId={useId()} filename="top-themes.png" />
         </div>
         {pending ? <Skeleton className="h-72" /> : (
           <div onContextMenu={(e)=>{ e.preventDefault(); setReviewsOpen(true) }}>
-            <BarChartViz data={themeTop} xKey="name" barKey="count" color="#7c3aed" onBarClick={(name)=>{
+            <BarChartViz data={themeTopFinal} xKey="name" barKey="count" color="#7c3aed" onBarClick={(name)=>{
               const b = (brands as any).find((br:any)=>br.name===name); if (b) setSelectedBrandIds([b.brandId])
             }} />
           </div>
@@ -469,7 +472,7 @@ export default function OverviewPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {smallMultiples.map((sm:any)=> (
+            {smallMultiplesFinal.map((sm:any)=> (
               <div key={sm.name} className="rounded-lg border p-2">
                 <div className="text-xs text-slate-600 mb-1">{sm.name}</div>
                 <Sparkline data={sm.data} dataKey="value" color="#6366f1" />
@@ -481,7 +484,7 @@ export default function OverviewPage() {
       <ReviewsModal
         open={reviewsOpen}
         onOpenChange={setReviewsOpen}
-        reviews={filtered.filteredReviews}
+        reviews={data ? filtered.filteredReviews : []}
         brands={brands}
         products={products}
         retailers={retailers}
