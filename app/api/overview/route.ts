@@ -10,13 +10,24 @@ function isDefault(body: OverviewFilters){
 }
 
 export async function POST(req: NextRequest){
-  const body = await req.json() as OverviewFilters
+  let body: OverviewFilters
+  try {
+    body = await req.json() as OverviewFilters
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers: { 'content-type': 'application/json' } })
+  }
+  if (!body || typeof body !== 'object'){
+    return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400, headers: { 'content-type': 'application/json' } })
+  }
   if (isDefault(body)){
-    const res = await fetch(new URL('/aggregates/default.json', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost').toString()).catch(()=>null)
-    if (res && res.ok){
-      const json = await res.json()
-      return new Response(JSON.stringify(json), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' } })
-    }
+    try {
+      const url = new URL('/aggregates/default.json', req.nextUrl.origin)
+      const res = await fetch(url)
+      if (res.ok){
+        const json = await res.json()
+        return new Response(JSON.stringify(json), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' } })
+      }
+    } catch {}
   }
   const key = JSON.stringify(body)
   if (cache.has(key)){

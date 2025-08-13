@@ -6,6 +6,22 @@ import type { DataModel } from '@/lib/types'
 let cache: DataModel | null = null
 let inflight: Promise<DataModel> | null = null
 
+function reviveData(json: any): DataModel {
+  const data = json as DataModel
+  // ensure dates have Date objects
+  if (Array.isArray((data as any).dates)){
+    (data as any).dates = (data as any).dates.map((d: any) => ({ ...d, date: new Date(d.dateKey + '-01') }))
+  }
+  // ensure reviews have reviewDate Date objects
+  if (Array.isArray((data as any).reviews)){
+    (data as any).reviews = (data as any).reviews.map((r: any) => ({
+      ...r,
+      reviewDate: r.reviewDate ? new Date(r.reviewDate) : new Date((r.dateKeyDay || (r.dateKey + '-01')))
+    }))
+  }
+  return data
+}
+
 async function loadData(): Promise<DataModel> {
   if (cache) return cache
   if (!inflight) {
@@ -16,7 +32,7 @@ async function loadData(): Promise<DataModel> {
           const res = await fetch('/data.json', { cache: 'force-cache' })
           if (res.ok) {
             const json = await res.json()
-            cache = json as DataModel
+            cache = reviveData(json)
             return cache
           }
         } catch {}
