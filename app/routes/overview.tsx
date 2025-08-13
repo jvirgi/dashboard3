@@ -25,7 +25,7 @@ import { ActiveFilterChips } from '@/components/ActiveFilterChips'
 import { ReviewsModal } from '@/components/ReviewsModal'
 
 export default function OverviewPage() {
-  const data = useSampleData()
+  const data = useSampleData({ lazy: true })
   const search = useSearchParams()
   const loading = !data
   const safe = data || { categories: [], brands: [], products: [], retailers: [], dates: [], reviews: [], themes: [] }
@@ -69,8 +69,16 @@ export default function OverviewPage() {
     timeframe: timeframe.mode === 'preset' ? { mode: 'preset', months: timeframe.months } as any : { mode: 'range', startKey: (timeframe as any).startKey, endKey: (timeframe as any).endKey },
     granularity,
   }
+  const isDefaultView = selectedCategoryIds.length===0 && selectedBrandIds.length===0 && selectedRetailerIds.length===0 && selectedRegions.length===0 && selectedThemes.length===0 && selectedAttributes.length===0 && deferredPQ==='' && timeframe.mode==='preset' && timeframe.months===12 && granularity==='month'
+  const [defaultAgg, setDefaultAgg] = useState<any>(null)
+  useEffect(()=>{
+    if (!isDefaultView) return
+    let cancelled = false
+    fetch('/aggregates/default.json').then(r=>r.json()).then(j=>{ if (!cancelled) setDefaultAgg(j) })
+    return ()=>{ cancelled=true }
+  }, [isDefaultView])
   const { agg, loading: loadingAgg, refetch } = useOverviewAggregate(initialFilters)
-  useEffect(()=>{ refetch(initialFilters) }, [JSON.stringify(initialFilters)])
+  useEffect(()=>{ if (!isDefaultView) refetch(initialFilters) }, [JSON.stringify(initialFilters), isDefaultView])
 
   const { categories, brands, products, retailers, dates, reviews, themes } = safe as any
 
@@ -265,11 +273,12 @@ export default function OverviewPage() {
   }, [categories, productById, brandById, filtered.filteredReviews, dates, cutoffKeys])
 
   // Prefer server aggregates while loading or when data not yet available
-  const kpisFinal = (!data && agg) ? agg.kpis : kpis
-  const trendDataFinal = (!data && agg) ? agg.trendData : trendData
-  const ratingDistFinal = (!data && agg) ? agg.ratingDist : ratingDist
-  const themeTopFinal = (!data && agg) ? agg.themeTop : themeTop
-  const smallMultiplesFinal = (!data && agg) ? agg.smallMultiples : smallMultiples
+  const kpisFinal = (!data && (defaultAgg || agg)) ? (defaultAgg?.kpis || agg?.kpis) : kpis
+  const trendDataFinal = (!data && (defaultAgg || agg)) ? (defaultAgg?.trendData || agg?.trendData) : trendData
+  const ratingDistFinal = (!data && (defaultAgg || agg)) ? (defaultAgg?.ratingDist || agg?.ratingDist) : ratingDist
+  const themeTopFinal = (!data && (defaultAgg || agg)) ? (defaultAgg?.themeTop || agg?.themeTop) : themeTop
+  const smallMultiplesFinal = (!data && (defaultAgg || agg)) ? (defaultAgg?.smallMultiples || agg?.smallMultiples) : smallMultiples
+  const pending = isPending || (loading && !defaultAgg) || (loadingAgg && !defaultAgg)
 
   // Downsample initial aggregate trend for faster first paint
   const trendForRender = useMemo(()=>{
@@ -287,8 +296,8 @@ export default function OverviewPage() {
 
   const kpiSparkline = useMemo(()=>{
     const source = trendForRender
-    const arr = source.map(d=>({ name: d.name, value: d.rating }))
-    return arr.length ? arr : Array.from({length:8}).map((_,i)=>({ name: String(i), value: 0 }))
+    const arr = source.map((d:any)=>({ name: d.name, value: d.rating }))
+    return arr.length ? arr : Array.from({length:8}).map((_:any,i:number)=>({ name: String(i), value: 0 }))
   }, [trendForRender])
 
   const handleThemeBarClick = (name: string) => {
@@ -306,8 +315,6 @@ export default function OverviewPage() {
   const onSetBrand = (v: string[] | 'all') => startTransition(()=>setSelectedBrandIds(v === 'all' ? [] : v))
   const onSetRetailer = (v: string[] | 'all') => startTransition(()=>setSelectedRetailerIds(v === 'all' ? [] : v))
   const onSetMonths = (n: number) => startTransition(()=>setMonths(n))
-
-  const pending = isPending || loading || loadingAgg
 
   const slicedTrend = useMemo(()=>{
     const base = trendForRender

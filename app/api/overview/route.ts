@@ -5,12 +5,22 @@ import { aggregateOverview, type OverviewFilters } from '@/lib/aggregate'
 const CACHE_LIMIT = 50
 const cache = new Map<string, any>()
 
+function isDefault(body: OverviewFilters){
+  return body.selectedCategoryIds.length===0 && body.selectedBrandIds.length===0 && body.selectedRetailerIds.length===0 && body.selectedRegions.length===0 && body.selectedThemes.length===0 && body.selectedAttributes.length===0 && body.productQuery==='' && body.timeframe.mode==='preset' && (body.timeframe as any).months===12 && body.granularity==='month'
+}
+
 export async function POST(req: NextRequest){
   const body = await req.json() as OverviewFilters
+  if (isDefault(body)){
+    const res = await fetch(new URL('/aggregates/default.json', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost').toString()).catch(()=>null)
+    if (res && res.ok){
+      const json = await res.json()
+      return new Response(JSON.stringify(json), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' } })
+    }
+  }
   const key = JSON.stringify(body)
   if (cache.has(key)){
     const val = cache.get(key)
-    // refresh LRU
     cache.delete(key); cache.set(key, val)
     return new Response(JSON.stringify(val), { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=60' } })
   }

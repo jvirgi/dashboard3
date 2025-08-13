@@ -9,21 +9,43 @@ let inflight: Promise<DataModel> | null = null
 async function loadData(): Promise<DataModel> {
   if (cache) return cache
   if (!inflight) {
-    inflight = import('@/lib/sampleData').then(m => {
-      cache = m.sampleData
+    inflight = (async () => {
+      // Prefer pre-baked static JSON if present
+      if (typeof window !== 'undefined') {
+        try {
+          const res = await fetch('/data.json', { cache: 'force-cache' })
+          if (res.ok) {
+            const json = await res.json()
+            cache = json as DataModel
+            return cache
+          }
+        } catch {}
+      }
+      // Fallback to dynamic import generator
+      const mod = await import('@/lib/sampleData')
+      cache = mod.sampleData
       return cache
-    })
+    })()
   }
   return inflight
 }
 
-export function useSampleData(){
+export function useSampleData(opts: { enabled?: boolean; lazy?: boolean } = {}){
+  const { enabled = true, lazy = false } = opts
   const [data, setData] = React.useState<DataModel | null>(cache)
-  const [, startTransition] = (React as any).useTransition ? (React as any).useTransition() : [false, (fn: any)=>fn()]
+  const start = React.startTransition ? React.startTransition : (fn: any)=>fn()
+
   React.useEffect(()=>{
+    if (!enabled) return
     if (data) return
-    loadData().then(d => startTransition(()=> setData(d)))
-  }, [data])
+    if (lazy && typeof window !== 'undefined' && 'requestIdleCallback' in window){
+      const id = (window as any).requestIdleCallback(()=>{ loadData().then(d=> start(()=> setData(d))) }, { timeout: 2000 })
+      return ()=> (window as any).cancelIdleCallback?.(id)
+    } else {
+      loadData().then(d=> start(()=> setData(d)))
+    }
+  }, [enabled, lazy, data])
+
   return data
 }
 
@@ -39,12 +61,17 @@ export function useOverviewAggregate(initialFilters: import('./aggregate').Overv
   const fetchAgg = React.useCallback(async (filters: import('./aggregate').OverviewFilters)=>{
     const key = JSON.stringify(filters)
     if (key === lastKey.current && agg) return agg
-    abortRef.current?.abort()
+    // abort previous in-flight request
+    if (abortRef.current){ try { abortRef.current.abort() } catch {}
+    }
     const ctrl = new AbortController(); abortRef.current = ctrl
     setLoading(true)
     try {
       const r = await fetch('/api/overview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: key, signal: ctrl.signal })
       const j = await r.json(); setAgg(j); lastKey.current = key; return j
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') { console.error(e) }
+      return agg
     } finally {
       if (!ctrl.signal.aborted) setLoading(false)
     }
