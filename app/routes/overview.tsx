@@ -168,10 +168,10 @@ export default function OverviewPage() {
     const deltaSent = last3Sent - prev3Sent
 
     const last3Count = last3.length
-    const prev3Count = prev3.length || 1
-    const deltaVol = (last3Count - prev3Count) / prev3Count
+    const prev3Count = prev3.length
+    const deltaVolCount = last3Count - prev3Count
 
-    return { count, avgRating, avgSent, delta, deltaSent, deltaVol }
+    return { count, avgRating, avgSent, delta, deltaSent, deltaVolCount }
   }, [filtered])
 
   const trendData = useMemo(() => {
@@ -400,8 +400,8 @@ export default function OverviewPage() {
               icon={<MessageSquare className="h-5 w-5 text-brand-600" />}
               label="Reviews"
               value={kpisFinal.count}
-              delta={Number(((kpisFinal.deltaVol||0)*100).toFixed(1))}
-              suffix="%"
+              delta={kpisFinal.deltaVolCount}
+              deltaDecimals={0}
             />
             <KPIStat
               icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}

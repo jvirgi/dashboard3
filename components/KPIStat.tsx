@@ -6,7 +6,7 @@ import CountUp from 'react-countup'
 
 type KPIValue = string | number | ReactNode
 
-export function KPIStat({ icon, label, value, delta, suffix }: { icon: ReactNode; label: string; value: KPIValue; delta?: number; suffix?: string }){
+export function KPIStat({ icon, label, value, delta, suffix, deltaDecimals = 2 }: { icon: ReactNode; label: string; value: KPIValue; delta?: number; suffix?: string; deltaDecimals?: number }){
   const trendingUp = (delta ?? 0) >= 0
   const renderValue = () => {
     if (typeof value === 'number') {
@@ -17,6 +17,18 @@ export function KPIStat({ icon, label, value, delta, suffix }: { icon: ReactNode
       )
     }
     return value
+  }
+
+  const renderDelta = () => {
+    if (delta === undefined) return null
+    const abs = Math.abs(delta)
+    const formatted = deltaDecimals === 0 ? abs.toLocaleString() : abs.toFixed(deltaDecimals)
+    return (
+      <div className={`shrink-0 badge ${trendingUp ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`} style={{ borderColor: trendingUp ? 'var(--kpi-pos)' : 'var(--kpi-neg)', backgroundColor: trendingUp ? 'var(--kpi-pos-bg)' : 'var(--kpi-neg-bg)', color: trendingUp ? 'var(--kpi-pos-text)' : 'var(--kpi-neg-text)' }}>
+        {trendingUp ? <ArrowUpRight className="h-3.5 w-3.5"/> : <ArrowDownRight className="h-3.5 w-3.5"/>}
+        {formatted}
+      </div>
+    )
   }
 
   return (
@@ -33,12 +45,7 @@ export function KPIStat({ icon, label, value, delta, suffix }: { icon: ReactNode
             </div>
           </div>
         </div>
-        {delta !== undefined && (
-          <div className={`shrink-0 badge ${trendingUp ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
-            {trendingUp ? <ArrowUpRight className="h-3.5 w-3.5"/> : <ArrowDownRight className="h-3.5 w-3.5"/>}
-            {Math.abs(delta).toFixed(2)}
-          </div>
-        )}
+        {renderDelta()}
       </div>
     </div>
   )

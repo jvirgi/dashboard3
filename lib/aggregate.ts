@@ -77,8 +77,8 @@ export function aggregateOverview(data: DataModel, filters: OverviewFilters){
   const prev3Sent = prev3.length ? prev3.reduce((s,r)=>s+r.sentimentScore,0)/prev3.length : 0
   const deltaSent = last3Sent - prev3Sent
   const last3Count = last3.length
-  const prev3Count = prev3.length || 1
-  const deltaVol = (last3Count - prev3Count) / prev3Count
+  const prev3Count = prev3.length
+  const deltaVolCount = last3Count - prev3Count
 
   // Trend and ratings mix by selected granularity (support month and quarter/year minimal)
   function keyFor(date: Date){
@@ -136,5 +136,5 @@ export function aggregateOverview(data: DataModel, filters: OverviewFilters){
     return { name: cat.name, data: series }
   })
 
-  return { cutoff: ck, kpis: { count, avgRating, avgSent, delta, deltaSent, deltaVol }, trendData, ratingDist, themeTop, smallMultiples }
+  return { cutoff: ck, kpis: { count, avgRating, avgSent, delta, deltaSent, deltaVolCount }, trendData, ratingDist, themeTop, smallMultiples }
 }
