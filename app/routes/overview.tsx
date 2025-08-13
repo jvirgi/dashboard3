@@ -271,15 +271,25 @@ export default function OverviewPage() {
   const themeTopFinal = (!data && agg) ? agg.themeTop : themeTop
   const smallMultiplesFinal = (!data && agg) ? agg.smallMultiples : smallMultiples
 
+  // Downsample initial aggregate trend for faster first paint
+  const trendForRender = useMemo(()=>{
+    const src = trendDataFinal
+    if (data || src.length <= 120) return src
+    const step = Math.ceil(src.length / 120)
+    const out = [] as typeof src
+    for (let i=0;i<src.length;i+=step) out.push(src[i])
+    return out
+  }, [trendDataFinal, data])
+
   const trendCardId = useId()
   const ratingCardId = useId()
   const themeCardId = useId()
 
   const kpiSparkline = useMemo(()=>{
-    const source = trendDataFinal
+    const source = trendForRender
     const arr = source.map(d=>({ name: d.name, value: d.rating }))
     return arr.length ? arr : Array.from({length:8}).map((_,i)=>({ name: String(i), value: 0 }))
-  }, [trendDataFinal])
+  }, [trendForRender])
 
   const handleThemeBarClick = (name: string) => {
     const brand = (brands as any).find((b:any)=>b.name===name)
@@ -300,12 +310,12 @@ export default function OverviewPage() {
   const pending = isPending || loading || loadingAgg
 
   const slicedTrend = useMemo(()=>{
-    const base = trendDataFinal
+    const base = trendForRender
     if (base.length === 0) return [] as typeof base
     const startIdx = Math.floor((range[0]/100) * base.length)
     const endIdx = Math.ceil((range[1]/100) * base.length)
     return base.slice(startIdx, endIdx)
-  }, [trendDataFinal, range])
+  }, [trendForRender, range])
 
   return (
     <div className="space-y-6">

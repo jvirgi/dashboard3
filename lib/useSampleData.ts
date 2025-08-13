@@ -33,16 +33,33 @@ export type OverviewAggregate = Awaited<ReturnType<typeof import('./aggregate')[
 export function useOverviewAggregate(initialFilters: import('./aggregate').OverviewFilters){
   const [agg, setAgg] = React.useState<OverviewAggregate | null>(null)
   const [loading, setLoading] = React.useState(false)
-  React.useEffect(()=>{
+  const lastKey = React.useRef<string>('')
+  const abortRef = React.useRef<AbortController | null>(null)
+
+  const fetchAgg = React.useCallback(async (filters: import('./aggregate').OverviewFilters)=>{
+    const key = JSON.stringify(filters)
+    if (key === lastKey.current && agg) return agg
+    abortRef.current?.abort()
+    const ctrl = new AbortController(); abortRef.current = ctrl
     setLoading(true)
-    fetch('/api/overview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(initialFilters) })
-      .then(r=>r.json())
-      .then(setAgg)
-      .finally(()=> setLoading(false))
-  }, [])
-  return { agg, loading, refetch: async (filters: import('./aggregate').OverviewFilters)=>{
-    setLoading(true)
-    const r = await fetch('/api/overview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(filters) })
-    const j = await r.json(); setAgg(j); setLoading(false); return j
-  } }
+    try {
+      const r = await fetch('/api/overview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: key, signal: ctrl.signal })
+      const j = await r.json(); setAgg(j); lastKey.current = key; return j
+    } finally {
+      if (!ctrl.signal.aborted) setLoading(false)
+    }
+  }, [agg])
+
+  React.useEffect(()=>{ fetchAgg(initialFilters) }, [])
+
+  // debounce refetch to avoid thrash when clearing filters
+  const debouncedRefetch = React.useMemo(()=>{
+    let t: any
+    return (filters: import('./aggregate').OverviewFilters)=>{
+      clearTimeout(t)
+      t = setTimeout(()=>{ fetchAgg(filters) }, 150)
+    }
+  }, [fetchAgg])
+
+  return { agg, loading, refetch: debouncedRefetch }
 }
